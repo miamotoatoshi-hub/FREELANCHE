@@ -1,6 +1,12 @@
+import { existsSync } from 'node:fs';
 import { defineConfig } from '@playwright/test';
 
 const PORT = 4173;
+
+// Use an explicit Chromium if one is provided (or preinstalled, as in the cloud sandbox);
+// otherwise fall back to the browser installed by `npx playwright install chromium`.
+const SANDBOX_CHROMIUM = '/opt/pw-browsers/chromium';
+const executablePath = process.env.CHROMIUM_PATH || (existsSync(SANDBOX_CHROMIUM) ? SANDBOX_CHROMIUM : undefined);
 
 export default defineConfig({
   testDir: './e2e',
@@ -17,10 +23,7 @@ export default defineConfig({
     locale: 'en-US',
     timezoneId: 'Europe/Berlin',
     serviceWorkers: 'allow',
-    launchOptions: {
-      // The sandbox ships a Chromium build; CHROMIUM_PATH overrides it elsewhere.
-      executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium',
-    },
+    launchOptions: executablePath ? { executablePath } : {},
   },
   webServer: {
     command: 'npm run build && npm run preview',

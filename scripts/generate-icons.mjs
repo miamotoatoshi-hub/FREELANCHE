@@ -1,6 +1,6 @@
 // Renders the PNG app icons from the logo geometry. Run with `npm run icons`.
 // Uses the browser Playwright already has (no extra image dependency).
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 
 const ACCENT = '#3b5bdb';
@@ -27,7 +27,9 @@ const targets = [
 ];
 
 mkdirSync('public/icons', { recursive: true });
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium' });
+const sandbox = '/opt/pw-browsers/chromium';
+const executablePath = process.env.CHROMIUM_PATH || (existsSync(sandbox) ? sandbox : undefined);
+const browser = await chromium.launch(executablePath ? { executablePath } : {});
 const page = await browser.newPage();
 for (const { file, size, rounded, pad } of targets) {
   await page.setViewportSize({ width: size, height: size });
