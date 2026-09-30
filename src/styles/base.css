@@ -1,0 +1,350 @@
+/* Reset, typography and app layout. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+h1,
+h2,
+h3,
+p,
+dl,
+dd,
+ul,
+ol,
+figure,
+fieldset {
+  margin: 0;
+  padding: 0;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+fieldset {
+  border: 0;
+  min-width: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: inherit;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+svg {
+  display: block;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+[tabindex='-1']:focus {
+  outline: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Numbers line up in columns and don't jitter while counting. */
+.amount,
+.pill,
+.calendar__day,
+.chart__tick,
+.chart__readout {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── layout ───────────────────────────────────────────────────────────── */
+
+.app {
+  width: 100%;
+  max-width: var(--column);
+  min-height: 100dvh;
+  margin: 0 auto;
+  position: relative;
+}
+
+.main {
+  min-height: 100dvh;
+}
+
+.screen {
+  padding: max(var(--s-4), env(safe-area-inset-top)) var(--s-4) calc(var(--nav-h) + var(--s-8) + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.screen--with-cta {
+  padding-bottom: calc(var(--nav-h) + 96px + env(safe-area-inset-bottom));
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  min-height: var(--tap);
+}
+
+.title {
+  font-size: 1.75rem;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.muted {
+  color: var(--text-2);
+  font-size: 0.9375rem;
+}
+
+.month-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  animation: view-in var(--dur) var(--ease) both;
+}
+
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ── bottom navigation ────────────────────────────────────────────────── */
+
+.tabbar {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--column);
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: var(--s-1) var(--s-2) env(safe-area-inset-bottom);
+  min-height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.tabbar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: var(--tap);
+  border-radius: var(--r-md);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-2);
+  transition: color var(--dur-fast) ease;
+}
+
+.tabbar__item.is-active {
+  color: var(--accent);
+}
+
+.tabbar__item:active {
+  transform: scale(0.96);
+}
+
+/* ── sticky primary action ────────────────────────────────────────────── */
+
+.cta-bar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--column);
+  z-index: 15;
+  padding: var(--s-6) var(--s-4) var(--s-3);
+  background: linear-gradient(to top, var(--bg) 62%, transparent);
+  pointer-events: none;
+}
+
+.cta-bar > * {
+  pointer-events: auto;
+}
+
+/* ── buttons ──────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 52px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-btn);
+  font-weight: 600;
+  font-size: 1rem;
+  text-align: center;
+  transition:
+    transform var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) ease,
+    opacity var(--dur-fast) ease;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+}
+
+.btn--block {
+  display: flex;
+  width: 100%;
+}
+
+.btn--primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn--secondary {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.btn--ghost {
+  color: var(--text-2);
+  min-height: var(--tap);
+}
+
+.btn--danger {
+  background: var(--danger);
+  color: var(--on-danger);
+}
+
+.cta {
+  min-height: 56px;
+  font-size: 1.0625rem;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  flex: none;
+  border-radius: 14px;
+  color: var(--text);
+  transition:
+    background-color var(--dur-fast) ease,
+    transform var(--dur-fast) var(--ease);
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.icon-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.icon-btn:disabled {
+  opacity: 0.3;
+}
+
+.icon-btn.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.link-btn {
+  min-height: var(--tap);
+  padding: 0 var(--s-2);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--accent);
+  border-radius: var(--r-sm);
+}
+
+/* ── motion preferences ───────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
