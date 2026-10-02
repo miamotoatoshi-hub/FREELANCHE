@@ -69,8 +69,11 @@ Create an **upload key** once, on your own machine:
 keytool -genkeypair -v -keystore ~/freelanche-upload.jks -alias upload -keyalg RSA -keysize 4096 -validity 10000
 ```
 
-Keep the `.jks` file and its passwords in a password manager and a backup. Then create `android/keystore.properties`
-(this file is in `.gitignore`; never commit it):
+Keep the `.jks` file and its password in a password manager and a backup. Use **one** password: the key file format that
+`keytool` creates today (PKCS12) protects the file and the key with the same password and ignores a separate key password
+(`jarsigner` then fails with "key associated with upload not a private key"). So `storePassword` and `keyPassword` below
+are the same value, and so are the GitHub secrets `UPLOAD_STORE_PASSWORD` and `UPLOAD_KEY_PASSWORD`. Then create
+`android/keystore.properties` (this file is in `.gitignore`; never commit it):
 
 ```properties
 storeFile=/home/you/freelanche-upload.jks
@@ -80,7 +83,7 @@ keyPassword=…
 playLicenseKey=MIIBIjANBgkq…   # PUBLIC: Play Console → Monetize with Play → Monetization setup → Licensing
 ```
 
-`npm run android:key` (script `scripts/create-upload-key.sh`) creates the key and this file for you, with the passwords typed
+`npm run android:key` (script `scripts/create-upload-key.sh`) creates the key and this file for you, with the password typed
 privately and never printed. **A release build refuses to run without a valid `playLicenseKey`** (or `FREELANCHE_PLAY_LICENSE_KEY`): it is the
 public key the app uses to confirm that purchases were really signed by Google (`PurchaseSecurity.java`).
 
@@ -93,6 +96,30 @@ npm run android:bundle        # → android/app/build/outputs/bundle/release/app
 
 Upload that `.aab` in Play Console. Each upload needs a higher version code: the build derives it from `package.json`
 (`1.2.0` → `10200`), so bump the version there, or set `FREELANCHE_VERSION_CODE`.
+
+### Building on GitHub (workflow *Android bundle (manual)*)
+
+Needs exactly five repository secrets, all mandatory for a signed bundle: `UPLOAD_KEYSTORE_BASE64` (the `.jks`, base64),
+`UPLOAD_STORE_PASSWORD`, `UPLOAD_KEY_ALIAS`, `UPLOAD_KEY_PASSWORD` (= the store password), `PLAY_LICENSE_KEY` (public).
+Step-by-step: `PLAY_CONSOLE_CHECKLIST.md`, Parts E and F. The workflow is `workflow_dispatch` only, requests read-only
+repository permission, never uploads to Play and never publishes. Its optional input `version_code` sets
+`FREELANCHE_VERSION_CODE` (digits only, 1–2100000000; empty = derived from `package.json`).
+
+What it checks (none of it prints a secret):
+
+1. **Before building** (`scripts/check-signing-inputs.sh`): all five values present and free of stray whitespace; the licence
+   key parses as an RSA public key; the key file opens with the store password; the alias exists; the key password really
+   signs (a throwaway jar is signed and discarded). A mistake therefore fails in seconds with a plain-English message.
+2. **Build**: `testReleaseUnitTest bundleRelease` (the release guard in `app/build.gradle` independently refuses a missing or
+   malformed licence key).
+3. **After building** (`scripts/verify-signed-bundle.sh`): the file is an Android App Bundle (`BundleConfig.pb`, base manifest),
+   `jarsigner -verify` passes, and the signer's SHA-256 fingerprint equals your upload key's. The fingerprints (public) and
+   the file checksum go to the run summary.
+4. The decoded key file is created with mode 600 under `$RUNNER_TEMP`, only secrets-bearing steps receive them as
+   step-level environment, and the file is deleted in an `if: always()` step.
+
+`ci.yml` runs the same two scripts on every push against a bundle signed with a throwaway key generated on the runner (kept
+nowhere), so the scripts and the signed-bundle path are exercised without any real secret.
 Also upload `android/app/build/outputs/mapping/release/mapping.txt` with each release (readable crash reports).
 
 ## 5. Create the subscription (this must match the app exactly)

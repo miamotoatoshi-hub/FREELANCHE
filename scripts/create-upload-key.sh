@@ -8,8 +8,11 @@
 #   bash scripts/create-upload-key.sh
 #
 # What an upload key is: Google Play signs the app that users install with its own key (Play App Signing). You sign each
-# upload with this separate "upload key", so if it is ever lost Google can reset it. Keep the .jks file and both
-# passwords in a password manager, and keep a backup copy of the .jks somewhere safe and offline.
+# upload with this separate "upload key", so if it is ever lost Google can reset it. Keep the .jks file and its
+# password in a password manager, and keep a backup copy of the .jks somewhere safe and offline.
+#
+# One password only: the standard key-file format (PKCS12) protects the file and the key inside it with the same
+# password and ignores a separate key password, so offering two would only create a build that cannot sign.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -47,37 +50,29 @@ read_password() {
   done
 }
 
-STORE_PASSWORD="$(read_password 'Choose a password for the key file')"
-echo
-echo "You can use the same password for the key itself, or a different one."
-read -r -p "Use the same password for the key? [Y/n] " SAME
-if [ "${SAME:-Y}" = "n" ] || [ "${SAME:-Y}" = "N" ]; then
-  KEY_PASSWORD="$(read_password 'Choose a password for the key')"
-else
-  KEY_PASSWORD="$STORE_PASSWORD"
-fi
+PASSWORD="$(read_password 'Choose a password for the key file')"
 
-# The passwords go to keytool through environment variables (-storepass:env), so they never appear in the process list.
-export FREELANCHE_STOREPASS="$STORE_PASSWORD" FREELANCHE_KEYPASS="$KEY_PASSWORD"
+# The password goes to keytool through an environment variable (-storepass:env), so it never appears in the process list.
+export FREELANCHE_STOREPASS="$PASSWORD"
 mkdir -p "$(dirname "$KEYSTORE_PATH")"
 keytool -genkeypair -keystore "$KEYSTORE_PATH" -alias "$KEY_ALIAS" -keyalg RSA -keysize 4096 -validity 10000 \
-  -dname "CN=$OWNER_NAME" -storepass:env FREELANCHE_STOREPASS -keypass:env FREELANCHE_KEYPASS >/dev/null
+  -dname "CN=$OWNER_NAME" -storepass:env FREELANCHE_STOREPASS -keypass:env FREELANCHE_STOREPASS >/dev/null
 chmod 600 "$KEYSTORE_PATH"
 
 umask 077
 {
   echo "# Written by scripts/create-upload-key.sh. SECRET — never commit, share or paste this file (it is git-ignored)."
   echo "storeFile=$KEYSTORE_PATH"
-  echo "storePassword=$STORE_PASSWORD"
+  echo "storePassword=$PASSWORD"
   echo "keyAlias=$KEY_ALIAS"
-  echo "keyPassword=$KEY_PASSWORD"
+  echo "keyPassword=$PASSWORD"
   echo "# Public, not secret: paste the licence key from Play Console (Monetize with Play > Monetization setup > Licensing)."
   echo "playLicenseKey="
 } >"$PROPS_PATH"
 chmod 600 "$PROPS_PATH"
 
 FINGERPRINT="$(keytool -list -keystore "$KEYSTORE_PATH" -alias "$KEY_ALIAS" -storepass:env FREELANCHE_STOREPASS 2>/dev/null | sed -n 's/^.*(SHA-256): *//p;s/^Certificate fingerprint (SHA-256): *//p' | head -1)"
-unset FREELANCHE_STOREPASS FREELANCHE_KEYPASS STORE_PASSWORD KEY_PASSWORD
+unset FREELANCHE_STOREPASS PASSWORD
 
 echo
 echo "Done."
@@ -86,6 +81,7 @@ echo "  Build settings: $PROPS_PATH   (already git-ignored)"
 echo "  Fingerprint (SHA-256, safe to share): ${FINGERPRINT:-unavailable}"
 echo
 echo "NEXT:"
-echo "  1. Back up the .jks file and write both passwords in your password manager. Losing them means asking Google to reset the upload key."
+echo "  1. Back up the .jks file and write its password in your password manager. Losing them means asking Google to reset the upload key."
 echo "  2. In Play Console copy the licence key into $PROPS_PATH after 'playLicenseKey='."
-echo "  3. Build with:  npm run android:bundle"
+echo "  3. Build with:  npm run android:bundle   (or let GitHub build it: docs/PLAY_CONSOLE_CHECKLIST.md, Part F)"
+echo "     For GitHub, the same password goes into BOTH secrets UPLOAD_STORE_PASSWORD and UPLOAD_KEY_PASSWORD."

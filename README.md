@@ -104,12 +104,12 @@ The web build is bundled into an Android app with Capacitor 8 (`android/`, `capa
 with the store texts, [privacy policy](docs/PRIVACY_POLICY.md) and [Data safety answers](docs/PLAY_DATA_SAFETY.md) alongside.
 
 ```bash
-npm run android:key      # create your upload key + android/keystore.properties (passwords typed privately)
+npm run android:key      # create your upload key + android/keystore.properties (password typed privately)
 npm run android:sync     # build the real (non-test) web app, check it, copy it into android/
 npm run android:bundle   # → android/app/build/outputs/bundle/release/app-release.aab (needs your upload key, see the guide)
 ```
 
-> The Android project is built for real by CI on GitHub (job `android`: compile, native unit tests, a refusal test for a missing licence key, and a signed-release rehearsal with a throwaway key). It has not been installed on a phone by the author, and **no real Google Play payment has been tested yet** — see `docs/TESTING.md` for the phone test.
+> The Android project is built for real by CI on GitHub (job `android`: compile, native unit tests, a refusal test for a missing licence key, and a signed-release rehearsal with a throwaway key, which also runs the pre-build key check and the post-build signature check used by the manual "Android bundle" workflow). It has not been installed on a phone by the author, and **no real Google Play payment has been tested yet** — see `docs/TESTING.md` for the phone test.
 
 ### Languages and localisation
 

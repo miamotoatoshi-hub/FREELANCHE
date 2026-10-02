@@ -13,7 +13,7 @@ different name, look for the closest one.
 
 - [ ] A **Google account** you will use for the developer account (a dedicated one is best).
 - [ ] The one-time **developer registration fee** and ID verification (Google asks for this; it can take a few days).
-- [ ] A **computer** (Windows, Mac or Linux) — see Part G for the two ways to build; one needs no installation.
+- [ ] A **computer** (Windows, Mac or Linux) — see Part F for the two ways to build; one needs no installation.
 - [ ] An **Android phone** with the Google Play Store, signed in to a Google account you will use as a *tester*.
 - [ ] A **web page for your privacy policy** (Part J explains the free way).
 
@@ -38,30 +38,74 @@ The app uses it to check that purchases really come from Google (it blocks fake 
 1. [ ] Left menu → **Monetize with Play** → **Monetization setup** (wording may vary slightly).
 2. [ ] Find **Licensing** → **Licence key** (a long text like `MIIBIjANBgkq…`). Click copy.
 3. [ ] Keep it for Part F. It is **public**, not a secret — but copy it exactly, without extra spaces.
+4. [ ] Can't find it? Google moves menu items around. Tell me exactly which menu entries you *do* see and I'll point you to the right one — do not guess or copy a different long code (the build checks the format, but only Google's own key works for real purchases).
 
 ## Part E — Create your upload key (your private signature)
 
-Each file you upload must be signed. You create the signing key **on your computer**; it is never shared.
+Each file you upload must be signed. You create the signing key **on your own computer**; it is never sent to anyone.
+You will end up with **one file** (`freelanche-upload.jks`) and **one password**.
 
-1. [ ] Install **Java 17 or newer** if `keytool` is missing (<https://adoptium.net>).
-2. [ ] In the project folder run: `npm run android:key`
-3. [ ] Type a name, then choose a password (12+ characters, **not shown as you type**). The script creates `~/freelanche-upload.jks` and `android/keystore.properties`.
-4. [ ] **Back up** `freelanche-upload.jks` (USB stick or private cloud) and save the password in a password manager. If you lose both, you must ask Google to reset the key.
-5. [ ] Open `android/keystore.properties` in a text editor and paste the licence key after `playLicenseKey=` (Part D). Save.
+1. [ ] Check that Java is installed: open a terminal (Windows: *PowerShell*) and type `keytool -help`. If you get "command not found", install **Java 17 or newer** from <https://adoptium.net> and open a new terminal.
+2. [ ] Create the key. Copy this whole line, press Enter:
 
-*(Never email, upload, screenshot or paste that file or the passwords anywhere. The project already tells git to ignore them.)*
+   - Mac / Linux: `keytool -genkeypair -v -keystore ~/freelanche-upload.jks -alias upload -keyalg RSA -keysize 4096 -validity 10000`
+   - Windows PowerShell: `keytool -genkeypair -v -keystore "$HOME\freelanche-upload.jks" -alias upload -keyalg RSA -keysize 4096 -validity 10000`
+
+3. [ ] Answer the questions on screen:
+   - **Password** (twice): choose one with 12+ characters. It is **not shown** as you type — that is normal. **Write it down in a password manager now.**
+   - Name and organisation questions: your name is enough; you may press Enter to skip the others.
+   - "Is … correct?" → type `yes` and press Enter.
+   - If it asks for a *key password* "(RETURN if same as keystore password)": **just press Enter.** Do not choose a different one — the key file format used today cannot keep two different passwords, and a second one would make the build fail.
+4. [ ] **Back up** `freelanche-upload.jks` (USB stick or private cloud) next to the password. If you lose either, you must ask Google to reset the upload key (possible, but slow).
+5. [ ] The alias (the key's name inside the file) is `upload` — you typed it in the command above. Remember it.
+
+*(Never email, upload, screenshot or paste the `.jks` file or the password anywhere — not into GitHub issues, not into chat, not to me. The project already tells git to ignore them.)*
+
+*Prefer a guided script? In the project folder run `npm run android:key`. It asks for the same things, creates the same file, and also writes `android/keystore.properties` for building on your own computer.*
 
 ## Part F — Build the `.aab` file (the file you upload)
 
-**Easiest — no installation: let GitHub build it**
-1. [ ] On your computer, turn the key file into text: Mac/Linux `base64 -w0 ~/freelanche-upload.jks > key.txt` (Mac: `base64 -i ~/freelanche-upload.jks -o key.txt`); Windows PowerShell `[Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\freelanche-upload.jks")) | Set-Content key.txt`.
-2. [ ] GitHub → your repository → **Settings → Secrets and variables → Actions → New repository secret**. Create **five** secrets (names exact):
-   `UPLOAD_KEYSTORE_BASE64` (the contents of key.txt), `UPLOAD_STORE_PASSWORD`, `UPLOAD_KEY_ALIAS` (`upload`), `UPLOAD_KEY_PASSWORD`, `PLAY_LICENSE_KEY` (from Part D).
-   GitHub keeps them hidden; they cannot be read back. Then **delete key.txt**.
-3. [ ] GitHub → **Actions → "Android bundle (manual)" → Run workflow**. Wait for the green tick (about 5–10 minutes).
-4. [ ] Open the finished run → **Artifacts** → download **freelanche-release** → unzip → `app-release.aab` is your file.
+### Which secrets does GitHub need? (all five, no exceptions)
 
-**Or — on your own computer:** install **Android Studio**, open the `android` folder, then in a terminal: `npm ci && npm run android:bundle`. The file appears at `android/app/build/outputs/bundle/release/app-release.aab`.
+| Secret name | What to put in it | Why it is needed |
+| --- | --- | --- |
+| `UPLOAD_KEYSTORE_BASE64` | Your `.jks` file turned into one line of text (step F1) | Signs the bundle. Google rejects unsigned files. |
+| `UPLOAD_STORE_PASSWORD` | The password from Part E | Opens the key file. |
+| `UPLOAD_KEY_ALIAS` | `upload` | Says which key inside the file to use. |
+| `UPLOAD_KEY_PASSWORD` | **The same password again** | Uses the key. (For a standard key file it is always identical to the one above.) |
+| `PLAY_LICENSE_KEY` | The licence key from Part D | Public, but the release build refuses to build without it: the app uses it to reject forged purchases. |
+
+Nothing is optional and there is no "test" version of these: the workflow stops at its first step and tells you which one is missing.
+The file it produces is then signed with **your** key, so Google Play will accept it.
+
+*Just want to look at the app on your computer or a phone, without Google Play?* You need **none** of these. `npm run dev` runs the app with a pretend Google Play, and `cd android && ./gradlew assembleDebug` builds a test app for your own phone.
+Those test builds cannot be uploaded to Google Play.
+
+### F1. Turn the key file into text (on your computer)
+
+The text goes straight to your clipboard; you don't need to look at it or save it anywhere.
+
+- **Mac:** `base64 -i ~/freelanche-upload.jks | tr -d '\n' | pbcopy`
+- **Windows PowerShell:** `[Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\freelanche-upload.jks")) | Set-Clipboard`
+- **Linux:** `base64 -w0 ~/freelanche-upload.jks | xclip -selection clipboard` (no `xclip`? run `base64 -w0 ~/freelanche-upload.jks > key.txt`, open `key.txt`, copy everything, then **delete key.txt**)
+
+### F2. Add the five secrets to GitHub
+
+1. [ ] Open your repository on GitHub → **Settings** → **Secrets and variables** → **Actions** → green **New repository secret** button.
+2. [ ] **Name:** `UPLOAD_KEYSTORE_BASE64` · **Secret:** paste (Ctrl+V / Cmd+V) → **Add secret**.
+3. [ ] Repeat for the other four, with the names exactly as in the table (capital letters, underscores). Type or paste the value **without pressing Enter or Space afterwards** — a hidden space or line break is the most common mistake, and the workflow will tell you if it finds one.
+4. [ ] GitHub shows the names but never the values again. To change one later, open it and choose **Update**.
+
+### F3. Run the build
+
+1. [ ] GitHub → **Actions** → **Android bundle (manual)** → **Run workflow**.
+2. [ ] Leave **version_code** empty the first time. (Google Play needs a *higher* number for every upload; if you ever must upload a second build of the same app version, type a bigger whole number there, for example `10201`.)
+3. [ ] Click the green **Run workflow** button and wait for the green tick (about 5–10 minutes). The first steps check your secrets and your key in seconds, so a mistake shows up quickly with a plain message (see the table at the bottom of this page).
+4. [ ] Open the finished run → scroll to **Artifacts** → download **freelanche-release** → unzip → **`app-release.aab`** is your file. (The page above the artifacts also shows its size, a checksum and the key fingerprint.)
+
+This workflow only builds the file. It does **not** upload anything to Google Play and does not publish anything.
+
+**Or — on your own computer instead:** install **Android Studio**, run `npm run android:key` once (it also asks you to paste the licence key into `android/keystore.properties`), then `npm ci && npm run android:bundle`. The file appears at `android/app/build/outputs/bundle/release/app-release.aab`.
 
 - [ ] I have an `app-release.aab` file.
 
@@ -138,7 +182,15 @@ on a real phone.** Tell me before you do and I'll go through the final checklist
 | --- | --- |
 | "This subscription isn't available right now" | Product ID or base plan ID spelled differently; subscription/base plan/offer not **Active**; the build you installed is older than the subscription; wait a few hours. |
 | "Item not found" / app not found when opening the opt-in link | Not added to the tester list; wrong Google account on the phone; release not rolled out yet. |
-| Build fails with "Missing the Google Play licence key" | Part D/E step 5: the key is missing or has spaces. |
+| Build fails with "Missing the Google Play licence key" | `PLAY_LICENSE_KEY` (or `playLicenseKey` on your own computer) is missing or incomplete. Copy it again from Part D. |
+| GitHub: "Missing repository secrets: …" | The listed secret names don't exist yet or are spelled differently. Names are case-sensitive; add them under Settings → Secrets and variables → Actions. |
+| GitHub: "UPLOAD_KEYSTORE_BASE64 is not valid base64 text" / "The key file could not be opened" | The text was cut off or changed when pasted, or `UPLOAD_STORE_PASSWORD` is wrong. Redo F1 and re-create that one secret. |
+| GitHub: "no key with the name in UPLOAD_KEY_ALIAS" | The alias must be exactly what you typed after `-alias` in Part E (`upload`). The message lists the names found in your file. |
+| GitHub: "The key could not be used. UPLOAD_KEY_PASSWORD is probably wrong" | `UPLOAD_KEY_PASSWORD` must be exactly the same text as `UPLOAD_STORE_PASSWORD`. |
+| GitHub: "… starts or ends with a space or a line break" | Re-create that secret and paste it without pressing Enter or Space afterwards. |
+| GitHub: "PLAY_LICENSE_KEY is not a valid Google Play licence key" | Copy it again from Play Console (Part D): one long line starting with `MIIB`. |
+| Play Console: "Version code … has already been used" | Run the workflow again with a bigger number in **version_code**. |
+| Play Console: "signed with the wrong key" (later uploads) | Always use the same `.jks` file. Never create a second key; if the first is lost, use Play Console → App signing → request an upload key reset. |
 | Payment sheet never appears | Phone has no Google Play Store, or the Play Store is out of date. |
 | The trial isn't offered | That Google account already had the trial (it is once per account). Use another tester account. |
 | Locked even though you subscribed | Wait a minute and tap **Restore purchases**; check you are signed in to the same Google account. |

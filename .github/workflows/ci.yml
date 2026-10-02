@@ -70,9 +70,11 @@ jobs:
             -storepass:env FREELANCHE_UPLOAD_STORE_PASSWORD -keypass:env FREELANCHE_UPLOAD_KEY_PASSWORD > /dev/null
           # any valid RSA public key satisfies the build's format check; this one is a dummy
           export FREELANCHE_PLAY_LICENSE_KEY="$(openssl genrsa 2048 2>/dev/null | openssl rsa -pubout -outform DER 2>/dev/null | base64 -w0)"
+          # the same two checks the manual "Android bundle" workflow runs, exercised here on a real bundle
+          bash ../scripts/check-signing-inputs.sh
           ./gradlew --no-daemon testReleaseUnitTest bundleRelease
           ls -la app/build/outputs/bundle/release/
-          jarsigner -verify app/build/outputs/bundle/release/app-release.aab | head -2
+          bash ../scripts/verify-signed-bundle.sh app/build/outputs/bundle/release/app-release.aab
           rm -f "$KS"
       - if: failure()
         uses: actions/upload-artifact@v4
