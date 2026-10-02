@@ -109,7 +109,7 @@ npm run android:sync     # build the real (non-test) web app, check it, copy it 
 npm run android:bundle   # → android/app/build/outputs/bundle/release/app-release.aab (needs your upload key, see the guide)
 ```
 
-> The native plugin and Gradle files were type-checked, and the security classes unit-tested, but never built by a real Android toolchain on the author's machine. The CI job `android` is the first real build — check its result — and test on a real phone (with a licence-tester account) before the first upload. **No real Google Play payment has been tested yet.**
+> The Android project is built for real by CI on GitHub (job `android`: compile, native unit tests, a refusal test for a missing licence key, and a signed-release rehearsal with a throwaway key). It has not been installed on a phone by the author, and **no real Google Play payment has been tested yet** — see `docs/TESTING.md` for the phone test.
 
 ### Languages and localisation
 

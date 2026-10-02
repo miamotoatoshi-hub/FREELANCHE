@@ -26,6 +26,10 @@
     @com.getcapacitor.PluginMethod public <methods>;
 }
 -keep class app.freelanche.tracker.FreelancheBillingPlugin { *; }
+# The bridge between the web page and Android is a WebView JavaScript interface; shrinking must never touch it.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
 
 # Keep readable stack traces in Play Console crash reports (upload the mapping file with each release).
 -keepattributes SourceFile,LineNumberTable

@@ -7,11 +7,11 @@
 This is the checklist for everything that has to happen **outside the code**. Nothing here publishes anything by itself:
 the app only reaches users when *you* promote a release to production in Play Console.
 
-> **Status of the Android build.** The web app, the subscription rules and the paywall are fully tested with a *simulated* Google Play.
-> The purchase-signature check and the Keystore stamp are compiled and unit-tested against the real Android classes. The rest of the
-> native plugin and the Gradle files were type-checked but **never built by a real Android toolchain on the author's machine** (the
-> authoring sandbox cannot reach Google's SDK servers). The CI job `android` (`.github/workflows/ci.yml`) is the first real build — read
-> its result. And **no real Google Play purchase has been made**: the manual test in `TESTING.md` is the only thing that proves payments work.
+> **Status of the Android build.** On GitHub's servers (CI job `android`, commit `5527678`) the app **compiles** with the real Android SDK, Play Billing
+> Library 9.1.0 and Capacitor 8.5.2; the native unit tests pass; a debug app is assembled; a release build refuses to run without the Play licence key; and a
+> *signed release bundle builds* with R8 shrinking (using a throwaway key that is discarded). What has **not** happened: the app has never been installed on
+> a phone or emulator by the author's tooling, and **no real Google Play purchase has been made**. The manual test in `TESTING.md` is the only thing that
+> proves payments work.
 
 ---
 
