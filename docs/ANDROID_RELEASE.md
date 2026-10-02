@@ -1,12 +1,17 @@
-# Releasing Freelanche on Google Play
+# Releasing Freelanche on Google Play — technical reference
+
+> **New to Google Play Console?** Use the step-by-step [`PLAY_CONSOLE_CHECKLIST.md`](PLAY_CONSOLE_CHECKLIST.md) instead. This file is the
+> developer reference behind it. See also [`SECURITY_REVIEW.md`](SECURITY_REVIEW.md) (what can and cannot be bypassed) and
+> [`TESTING.md`](TESTING.md) (which tests are simulated and which prove real payments).
 
 This is the checklist for everything that has to happen **outside the code**. Nothing here publishes anything by itself:
 the app only reaches users when *you* promote a release to production in Play Console.
 
-> **Status of the Android build.** The web app, the subscription rules and the paywall are fully tested (unit + browser
-> tests). The Android shell and the native billing plugin (`android/app/src/main/java/app/freelanche/tracker/FreelancheBillingPlugin.java`)
-> were written in an environment without the Android SDK, so **they have never been compiled or run on a device**. Step 3
-> below (build once in Android Studio, test with a licence-tester account on a real phone) is not optional.
+> **Status of the Android build.** The web app, the subscription rules and the paywall are fully tested with a *simulated* Google Play.
+> The purchase-signature check and the Keystore stamp are compiled and unit-tested against the real Android classes. The rest of the
+> native plugin and the Gradle files were type-checked but **never built by a real Android toolchain on the author's machine** (the
+> authoring sandbox cannot reach Google's SDK servers). The CI job `android` (`.github/workflows/ci.yml`) is the first real build — read
+> its result. And **no real Google Play purchase has been made**: the manual test in `TESTING.md` is the only thing that proves payments work.
 
 ---
 
@@ -38,7 +43,7 @@ the answers in `docs/PLAY_DATA_SAFETY.md` and `docs/STORE_LISTING.md` as the sou
 
 ## 3. Build it once and look at it (do not skip)
 
-Requirements: Android Studio (current stable), JDK 21, Node 22.
+Requirements: Android Studio (current stable; it includes JDK 21), Node 22. No Android Studio? Use the GitHub workflow *Android bundle (manual)* described in the checklist.
 
 ```bash
 npm ci
@@ -72,7 +77,12 @@ storeFile=/home/you/freelanche-upload.jks
 storePassword=…
 keyAlias=upload
 keyPassword=…
+playLicenseKey=MIIBIjANBgkq…   # PUBLIC: Play Console → Monetize with Play → Monetization setup → Licensing
 ```
+
+`npm run android:key` (script `scripts/create-upload-key.sh`) creates the key and this file for you, with the passwords typed
+privately and never printed. **A release build refuses to run without a valid `playLicenseKey`** (or `FREELANCHE_PLAY_LICENSE_KEY`): it is the
+public key the app uses to confirm that purchases were really signed by Google (`PurchaseSecurity.java`).
 
 (or set the environment variables `FREELANCHE_UPLOAD_STORE_FILE`, `…_STORE_PASSWORD`, `…_KEY_ALIAS`, `…_KEY_PASSWORD`).
 Then build the bundle:
@@ -144,8 +154,8 @@ Promote to *Production* yourself, with a staged rollout (e.g. 10 %) so you can h
 
 ## 8. Known limits and optional hardening
 
-* **Entitlement is checked on the device** (the Play Billing Library on the phone). It is correct for honest use and the purchase itself
-  cannot be forged, but on a rooted or tampered phone the local check could be bypassed. The standard remedy is a small server that
+* **Entitlement is checked on the device** (the Play Billing Library on the phone, with Google's signature on each purchase verified and the offline memory
+  stamped by the Android Keystore — see `SECURITY_REVIEW.md`). On a rooted or modified phone the local check can still be bypassed. The standard remedy is a small server that
   verifies purchase tokens with the Google Play Developer API and receives *Real-time developer notifications*. That needs your own
   Google Cloud project and a service account — create it yourself and never paste its key anywhere public or into chat. The app is
   structured for it: only `src/billing/store.ts` would call the verifier; the UI would not change. It would also add network

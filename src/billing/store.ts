@@ -1,4 +1,4 @@
-import { decideAccess, nextCache, parseCache, purchasesToAcknowledge, serializeCache } from './entitlement';
+import { decideAccess, nextCache, parseCache, purchasesToAcknowledge, serializeCache, touchCache } from './entitlement';
 import {
   BillingError,
   RECHECK_INTERVAL_MS,
@@ -199,7 +199,7 @@ export class EntitlementStore {
     this.lastRefreshAt = now();
     this.verification = verification;
     const access = decideAccess({ verification, cache: this.cache, now: now() });
-    const updated = nextCache(this.cache, verification, access);
+    const updated = touchCache(nextCache(this.cache, verification, access), now());
     if (updated !== this.cache) {
       this.cache = updated;
       if (updated) this.safeWrite(serializeCache(updated));

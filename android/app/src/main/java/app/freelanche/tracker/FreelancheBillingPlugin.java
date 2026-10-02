@@ -21,6 +21,9 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import org.json.JSONObject;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -36,7 +39,11 @@ import java.util.List;
  *   purchase({ productId, offerToken })         → { outcome: 'purchased' | 'pending' | 'cancelled' }
  *   acknowledge({ purchaseToken })
  *   openManageSubscriptions({ productId })
+ *   sign({ text }) → { mac }   /   verify({ text, mac }) → { valid }    (Keystore stamp, see EntitlementSeal)
  * Event: "purchasesChanged" — Google Play reported a purchase change (e.g. a pending payment completed).
+ *
+ * Every listed purchase carries "signatureValid": whether Google's digital signature on it verifies against the
+ * app's Play licence key (see PurchaseSecurity). It is null only in builds that were compiled without a key.
  *
  * Errors are rejected with the name of the Billing Library response code as the error code, e.g.
  * "SERVICE_UNAVAILABLE" or "ITEM_ALREADY_OWNED". Purchase tokens are never logged.
@@ -185,6 +192,40 @@ public class FreelancheBillingPlugin extends Plugin {
                 })
             )
         );
+    }
+
+    /** Stamps text with the Keystore key (used to protect the app's remembered subscription check). */
+    @PluginMethod
+    public void sign(PluginCall call) {
+        String text = call.getString("text");
+        if (text == null) {
+            call.reject("text is required", "DEVELOPER_ERROR");
+            return;
+        }
+        try {
+            JSObject result = new JSObject();
+            result.put("mac", EntitlementSeal.sign(text));
+            call.resolve(result);
+        } catch (GeneralSecurityException | IOException e) {
+            call.reject("The Android Keystore is not available", "KEYSTORE_UNAVAILABLE");
+        }
+    }
+
+    @PluginMethod
+    public void verify(PluginCall call) {
+        String text = call.getString("text");
+        String mac = call.getString("mac");
+        if (text == null || mac == null) {
+            call.reject("text and mac are required", "DEVELOPER_ERROR");
+            return;
+        }
+        try {
+            JSObject result = new JSObject();
+            result.put("valid", EntitlementSeal.verify(text, mac));
+            call.resolve(result);
+        } catch (GeneralSecurityException | IOException e) {
+            call.reject("The Android Keystore is not available", "KEYSTORE_UNAVAILABLE");
+        }
     }
 
     @PluginMethod
@@ -389,10 +430,20 @@ public class FreelancheBillingPlugin extends Plugin {
                 item.put("purchaseState", state);
                 item.put("autoRenewing", purchase.isAutoRenewing());
                 item.put("acknowledged", purchase.isAcknowledged());
+                item.put("signatureValid", signatureCheck(purchase));
                 array.put(item);
             }
         }
         return array;
+    }
+
+    /** Google's signature on the purchase: true/false, or JSON null when this build has no licence key to check against. */
+    private static Object signatureCheck(Purchase purchase) {
+        String licenseKey = BuildConfig.PLAY_LICENSE_KEY;
+        if (licenseKey == null || licenseKey.isEmpty()) {
+            return JSONObject.NULL;
+        }
+        return PurchaseSecurity.isSignatureValid(licenseKey, purchase.getOriginalJson(), purchase.getSignature());
     }
 
     private void reject(PluginCall call, BillingResult result) {

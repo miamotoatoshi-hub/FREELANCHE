@@ -25,12 +25,11 @@ const store = new AppStore(createLocalPersistence(getBrowserStorage()), {
   defaults: { language: detectLanguage(locales), currency: suggestCurrency(locales) ?? 'EUR' },
 });
 
-const entitlements = createEntitlementStore();
-
 /** Longest we hold the first screen back for Google Play's first answer; after that the app shows its own "checking" screen. */
 const FIRST_CHECK_WAIT_MS = 2500;
 
 async function start() {
+  const entitlements = await createEntitlementStore();
   // Fetch the saved language's strings first, so the very first paint is already in that language.
   await loadLocale(store.getSnapshot().data.settings.language);
   // Ask Google Play about the subscription at the same time, but never let a slow answer block the app for long.

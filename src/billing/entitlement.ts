@@ -1,4 +1,5 @@
 import {
+  CLOCK_ROLLBACK_TOLERANCE_MS,
   OFFLINE_GRACE_MS,
   SUBSCRIPTION_PRODUCT_ID,
   type Access,
@@ -42,10 +43,15 @@ export function purchasesToAcknowledge(
 
 const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
-/** Is a remembered check recent enough to rely on? A clock set backwards never counts as recent. */
+/**
+ * Is a remembered check recent enough to rely on? Two clock tricks are refused: a check that appears to come from
+ * the future, and a clock that has been turned back behind the latest time this app has already seen (which would
+ * otherwise let an expired subscription live on while offline).
+ */
 function isFresh(cache: EntitlementCache, now: number): boolean {
   const age = now - cache.lastVerifiedAt;
-  return age >= -MAX_CLOCK_SKEW_MS && age <= OFFLINE_GRACE_MS;
+  if (age < -MAX_CLOCK_SKEW_MS || age > OFFLINE_GRACE_MS) return false;
+  return now >= cache.seenAt - CLOCK_ROLLBACK_TOLERANCE_MS;
 }
 
 
@@ -90,8 +96,19 @@ export function nextCache(cache: EntitlementCache | null, verification: Verifica
     lastVerifiedAt: verification.at,
     lastStatus: access.status,
     everEntitled: (cache?.everEntitled ?? false) || access.entitled,
+    // A real answer from Google Play, received now, is the new reference point for the clock.
+    seenAt: verification.at,
   };
 }
+
+/** Notes the latest time the clock has shown, without ever inventing a memory that was not there. */
+export function touchCache(cache: EntitlementCache | null, now: number): EntitlementCache | null {
+  if (!cache || now <= cache.seenAt + TOUCH_STEP_MS) return cache;
+  return { ...cache, seenAt: now };
+}
+
+/** Writing the memory on every tick would be wasteful; a few minutes' resolution is plenty. */
+const TOUCH_STEP_MS = 5 * 60 * 1000;
 
 /* ── the remembered check, as stored ───────────────────────────────────────────────────────────── */
 
@@ -107,12 +124,14 @@ export function parseCache(text: string | null): EntitlementCache | null {
   try {
     const raw: unknown = JSON.parse(text);
     if (typeof raw !== 'object' || raw === null) return null;
-    const { v, lastVerifiedAt, lastStatus, everEntitled } = raw as Record<string, unknown>;
+    const { v, lastVerifiedAt, lastStatus, everEntitled, seenAt } = raw as Record<string, unknown>;
     if (v !== 1) return null;
     if (typeof lastVerifiedAt !== 'number' || !Number.isFinite(lastVerifiedAt)) return null;
     if (typeof lastStatus !== 'string' || !STATUSES.includes(lastStatus as AccessStatus)) return null;
     if (typeof everEntitled !== 'boolean') return null;
-    return { lastVerifiedAt, lastStatus: lastStatus as AccessStatus, everEntitled };
+    if (seenAt !== undefined && (typeof seenAt !== 'number' || !Number.isFinite(seenAt))) return null;
+    // Memories written before the clock check existed simply start from the time of their last verification.
+    return { lastVerifiedAt, lastStatus: lastStatus as AccessStatus, everEntitled, seenAt: seenAt ?? lastVerifiedAt };
   } catch {
     return null;
   }

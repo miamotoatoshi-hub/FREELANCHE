@@ -179,7 +179,7 @@ describe('subscriptions ending', () => {
 describe('when Google Play cannot be reached', () => {
   it('a subscriber who checked recently is not locked out', async () => {
     play.set({ fail: { query: 'service-unavailable' } });
-    const memory = serializeCache({ lastVerifiedAt: NOW - 24 * 3_600_000, lastStatus: 'active', everEntitled: true });
+    const memory = serializeCache({ lastVerifiedAt: NOW - 24 * 3_600_000, lastStatus: 'active', everEntitled: true, seenAt: NOW - 24 * 3_600_000 });
     await renderApp(returningUser(), play, memory);
     expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument();
     const user = userEvent.setup();
@@ -211,7 +211,7 @@ describe('when Google Play cannot be reached', () => {
         openManageSubscriptions: () => Promise.resolve(),
         onPurchasesChanged: () => () => undefined,
       },
-      serializeCache({ lastVerifiedAt: NOW, lastStatus: 'active', everEntitled: true }),
+      serializeCache({ lastVerifiedAt: NOW, lastStatus: 'active', everEntitled: true, seenAt: NOW }),
     );
     expect(screen.getByRole('heading', { level: 1, name: 'Open Freelanche from Google Play' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Start free trial' })).not.toBeInTheDocument();

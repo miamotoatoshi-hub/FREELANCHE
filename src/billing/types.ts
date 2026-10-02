@@ -9,6 +9,13 @@ export const SUBSCRIPTION_PRODUCT_ID = 'freelanche_premium';
 /** How long a successful check keeps the app unlocked when Google Play can't be reached (travel, flaky network). */
 export const OFFLINE_GRACE_MS = 72 * 60 * 60 * 1000;
 
+/**
+ * If the device clock is found to be this far behind the latest time the app has already seen, someone has turned
+ * it back (to stretch the offline grace period), and the remembered check is no longer trusted. Small corrections
+ * from the network time service stay well inside this.
+ */
+export const CLOCK_ROLLBACK_TOLERANCE_MS = 60 * 60 * 1000;
+
 /** While the app stays open it quietly re-checks this often, so a cancellation or renewal is noticed. */
 export const RECHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -24,6 +31,9 @@ export interface PlayPurchase {
   /** Google refunds purchases that are not acknowledged within three days. */
   acknowledged: boolean;
 }
+
+/** One of Google's own words about a purchase: `false` means Google's digital signature did not match. */
+export type SignatureCheck = boolean | null;
 
 /** Why talking to Google Play failed. Used for friendly messages and for the offline-grace decision. */
 export type BillingErrorCode =
@@ -114,4 +124,6 @@ export interface EntitlementCache {
   lastVerifiedAt: number;
   lastStatus: AccessStatus;
   everEntitled: boolean;
+  /** The latest device-clock time the app has seen. A clock that falls behind it has been turned back. */
+  seenAt: number;
 }

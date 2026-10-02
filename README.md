@@ -94,20 +94,22 @@ Google Play  →  gateway (native plugin)  →  decideAccess (pure rules, src/bi
 * **Purchases are acknowledged immediately** (Google refunds unacknowledged ones after 3 days); the check repeats at launch, on returning to the foreground, when Google reports a change, and every 6 hours.
 * **No Stripe, no card details**: payment is Google Play's. The app has no INTERNET use of its own and the page CSP is `connect-src 'self'`.
 * **The pretend Google Play** used by development and the browser tests is compiled out of release builds; `scripts/verify-release-build.mjs` fails CI if any trace of it ships.
-* **Limit**: the check runs on the device. For tamper-resistance on rooted phones add server-side verification and Google's real-time notifications (needs your own Google Cloud service account) — see `docs/ANDROID_RELEASE.md`.
+* **Anti-tampering on the device**: every purchase's Google signature is verified against the app's Play licence key (release builds refuse to build without it), and the offline memory is stamped with an Android Keystore key and rejects a turned-back clock — see [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md) for every bypass considered.
+* **Limit**: the check runs on the device. Server-side verification, Google's real-time notifications and Play Integrity (which need your own Google Cloud project and service account) are **not** implemented; `SECURITY_REVIEW.md` says exactly what they would need.
 
 ### Android app
 
 The web build is bundled into an Android app with Capacitor 8 (`android/`, `capacitor.config.ts`). Everything needed to ship it is in
-[`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md) (build, signing, the exact Play Console subscription setup, testing with licence testers, going live),
+[`docs/PLAY_CONSOLE_CHECKLIST.md`](docs/PLAY_CONSOLE_CHECKLIST.md) (beginner step-by-step) and [`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md) (technical reference), with [`docs/TESTING.md`](docs/TESTING.md) separating simulated tests from the real Google Play test,
 with the store texts, [privacy policy](docs/PRIVACY_POLICY.md) and [Data safety answers](docs/PLAY_DATA_SAFETY.md) alongside.
 
 ```bash
+npm run android:key      # create your upload key + android/keystore.properties (passwords typed privately)
 npm run android:sync     # build the real (non-test) web app, check it, copy it into android/
 npm run android:bundle   # → android/app/build/outputs/bundle/release/app-release.aab (needs your upload key, see the guide)
 ```
 
-> The native plugin and Gradle files have **not been compiled** by the author's tooling (no Android SDK available there) — build once in Android Studio and test on a real phone before the first upload.
+> The native plugin and Gradle files were type-checked, and the security classes unit-tested, but never built by a real Android toolchain on the author's machine. The CI job `android` is the first real build — check its result — and test on a real phone (with a licence-tester account) before the first upload. **No real Google Play payment has been tested yet.**
 
 ### Languages and localisation
 

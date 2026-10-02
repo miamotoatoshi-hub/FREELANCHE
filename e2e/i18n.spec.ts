@@ -10,6 +10,7 @@ import { LANGUAGES, dict, freezeClock, goTo, seed, startTrial, visible } from '.
 const SIZES = [
   { name: 'small phone 320×568', width: 320, height: 568 },
   { name: 'phone 390×844', width: 390, height: 844 },
+  { name: 'tablet 768×1024', width: 768, height: 1024 },
   { name: 'desktop 1280×800', width: 1280, height: 800 },
 ] as const;
 
@@ -261,6 +262,23 @@ test.describe('right-to-left (Arabic and Urdu)', () => {
       await expect(sheet).toHaveCSS('direction', 'rtl');
       await amount.fill('1234.5');
       expect(visible(await amount.inputValue())).toMatch(/^1[,٬]234[.٫]5$/); // grouped live, whichever marks the locale uses
+    });
+
+    test(`${code}: the paywall is mirrored — text and ticks start on the right, the offer stays centred`, async ({ page }) => {
+      const d = dict(code);
+      await open(page, code, SIZES[1], { subscription: 'none' });
+      await expect(page.getByRole('button', { name: d['paywall.cta.trial'] })).toBeVisible();
+      await expect(page.locator('.paywall__features')).toHaveCSS('direction', 'rtl');
+      const first = page.locator('.paywall__features li').first();
+      const tick = (await first.locator('svg').boundingBox())!;
+      const words = (await first.locator('span').boundingBox())!;
+      expect(tick.x).toBeGreaterThan(words.x); // the tick sits at the start = right
+      const heading = (await page.locator('h1').boundingBox())!;
+      expect(390 - (heading.x + heading.width)).toBeLessThan(60); // title hugs the right edge
+      const offer = (await page.locator('.paywall__offer').boundingBox())!;
+      expect(Math.abs(offer.x + offer.width / 2 - 195)).toBeLessThan(2); // card is centred on the screen
+      const cta = (await page.getByRole('button', { name: d['paywall.cta.trial'] }).boundingBox())!;
+      expect(cta.width).toBeGreaterThan(300); // full-width button
     });
 
     test(`${code}: the first screen is already right-to-left on a cold start, with no flash of left-to-right`, async ({ page }) => {

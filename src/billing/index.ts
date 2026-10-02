@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { createMockGateway } from './mockGateway';
-import { createPlayGateway } from './playGateway';
+import { createPlayGateway, createPlaySealer } from './playGateway';
+import { createSealedMemory } from './sealedCache';
 import { EntitlementStore, type MemoryStorage } from './store';
 import type { BillingGateway } from './types';
 
@@ -36,8 +37,20 @@ function browserMemory(): MemoryStorage {
   };
 }
 
-export function createEntitlementStore(gateway: BillingGateway = createGateway()): EntitlementStore {
-  return new EntitlementStore({ gateway, storage: browserMemory(), now: () => Date.now() });
+/**
+ * In the Android app the remembered check is stamped with a key from the Android Keystore, so editing it, restoring
+ * it from a backup or copying it to another phone makes it worthless. Elsewhere (development, the browser tests) it is plain.
+ */
+async function memoryFor(gateway: BillingGateway): Promise<MemoryStorage> {
+  if (gateway.kind !== 'play') return browserMemory();
+  return createSealedMemory(
+    { get: () => window.localStorage.getItem(ENTITLEMENT_KEY), set: (text) => window.localStorage.setItem(ENTITLEMENT_KEY, text) },
+    createPlaySealer(),
+  );
+}
+
+export async function createEntitlementStore(gateway: BillingGateway = createGateway()): Promise<EntitlementStore> {
+  return new EntitlementStore({ gateway, storage: await memoryFor(gateway), now: () => Date.now() });
 }
 
 export { EntitlementStore } from './store';

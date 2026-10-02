@@ -9,6 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "build:mock": "tsc --noEmit && vite build --mode mock",
     "verify:release": "npm run build && node scripts/verify-release-build.mjs",
+    "scan:secrets": "bash scripts/scan-secrets.sh",
+    "android:key": "bash scripts/create-upload-key.sh",
     "android:sync": "npm run verify:release && cap sync android",
     "android:bundle": "npm run android:sync && cd android && ./gradlew bundleRelease",
     "preview": "vite preview --host 127.0.0.1 --port 4173",

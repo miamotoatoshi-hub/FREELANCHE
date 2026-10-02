@@ -1,5 +1,6 @@
 import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import { parseTrialDays } from './entitlement';
+import type { Sealer } from './sealedCache';
 import {
   BillingError,
   SUBSCRIPTION_PRODUCT_ID,
@@ -23,6 +24,11 @@ interface NativePurchase {
   purchaseState: 'purchased' | 'pending' | 'unspecified';
   autoRenewing: boolean;
   acknowledged: boolean;
+  /**
+   * Whether Google's digital signature on the purchase matches the app's Play licence key.
+   * `false` = forged or altered; `null`/absent = the build has no licence key to check against (debug builds only).
+   */
+  signatureValid?: boolean | null;
 }
 
 interface NativeOffer {
@@ -38,6 +44,9 @@ export interface FreelancheBillingPlugin {
   purchase(options: { productId: string; offerToken: string }): Promise<{ outcome: PurchaseOutcome }>;
   acknowledge(options: { purchaseToken: string }): Promise<void>;
   openManageSubscriptions(options: { productId: string }): Promise<void>;
+  /** Stamps text with a key that lives in the Android Keystore (HMAC-SHA256, base64). */
+  sign(options: { text: string }): Promise<{ mac: string }>;
+  verify(options: { text: string; mac: string }): Promise<{ valid: boolean }>;
   addListener(event: 'purchasesChanged', listener: () => void): Promise<PluginListenerHandle>;
 }
 
@@ -77,10 +86,12 @@ export function mapNativeError(error: unknown): BillingError {
   return new BillingError(mapped, message);
 }
 
+/** Purchases whose Google signature failed are dropped as if they had never been listed. */
 export function toPlayPurchases(native: readonly NativePurchase[]): PlayPurchase[] {
   const result: PlayPurchase[] = [];
   for (const item of native) {
     if (item.purchaseState !== 'purchased' && item.purchaseState !== 'pending') continue;
+    if (item.signatureValid === false) continue;
     result.push({
       productId: item.productId,
       purchaseToken: item.purchaseToken,
@@ -109,7 +120,23 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-export function createPlayGateway(plugin: FreelancheBillingPlugin = registerPlugin<FreelancheBillingPlugin>('FreelancheBilling')): BillingGateway {
+let sharedPlugin: FreelancheBillingPlugin | null = null;
+
+/** The one bridge to the native plugin, created on first use. */
+export function billingPlugin(): FreelancheBillingPlugin {
+  sharedPlugin ??= registerPlugin<FreelancheBillingPlugin>('FreelancheBilling');
+  return sharedPlugin;
+}
+
+/** The Keystore-backed stamp used to protect the remembered subscription check (see sealedCache.ts). */
+export function createPlaySealer(plugin: FreelancheBillingPlugin = billingPlugin()): Sealer {
+  return {
+    sign: async (text) => (await plugin.sign({ text })).mac,
+    verify: async (text, mac) => (await plugin.verify({ text, mac })).valid === true,
+  };
+}
+
+export function createPlayGateway(plugin: FreelancheBillingPlugin = billingPlugin()): BillingGateway {
   const productId = SUBSCRIPTION_PRODUCT_ID;
   return {
     kind: 'play',

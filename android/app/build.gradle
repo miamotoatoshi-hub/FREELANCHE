@@ -12,6 +12,11 @@ def keystoreFile = rootProject.file('keystore.properties')
 if (keystoreFile.exists()) { keystoreFile.withInputStream { keystoreProps.load(it) } }
 def signingValue = { String name, String env -> keystoreProps[name] ?: System.getenv(env) }
 
+// The app's Google Play licence key (Play Console → Monetize with Play → Monetization setup → Licensing).
+// It is a PUBLIC key, used on the phone to check that purchases were really signed by Google. Release builds
+// refuse to build without a valid one, because without it a fake Play Store could hand out free subscriptions.
+def playLicenseKey = (project.findProperty('freelanchePlayLicenseKey') ?: keystoreProps['playLicenseKey'] ?: System.getenv('FREELANCHE_PLAY_LICENSE_KEY') ?: '').toString().replaceAll('\\s', '')
+
 android {
     namespace = "app.freelanche.tracker"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -21,12 +26,16 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode((System.getenv('FREELANCHE_VERSION_CODE') ?: (versionMajor * 10000 + versionMinor * 100 + versionPatch)).toInteger())
         versionName webPackage.version
+        buildConfigField 'String', 'PLAY_LICENSE_KEY', "\"${playLicenseKey}\""
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
+    }
+    buildFeatures {
+        buildConfig = true
     }
     signingConfigs {
         release {
@@ -76,3 +85,19 @@ dependencies {
 }
 
 apply from: 'capacitor.build.gradle'
+
+// A release without a usable licence key would either lock paying customers out (wrong key) or skip the check (no key).
+// Fail the build instead, with instructions.
+tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
+    doFirst {
+        if (!playLicenseKey) {
+            throw new GradleException('Missing the Google Play licence key. Copy it from Play Console (Monetize with Play > Monetization setup > Licensing) ' +
+                'into android/keystore.properties as playLicenseKey=..., or set FREELANCHE_PLAY_LICENSE_KEY. See docs/PLAY_CONSOLE_CHECKLIST.md.')
+        }
+        try {
+            java.security.KeyFactory.getInstance('RSA').generatePublic(new java.security.spec.X509EncodedKeySpec(java.util.Base64.decoder.decode(playLicenseKey)))
+        } catch (Exception e) {
+            throw new GradleException('The Google Play licence key is not a valid base64 RSA public key (' + e.message + '). Copy it again from Play Console without any spaces added.')
+        }
+    }
+}

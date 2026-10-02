@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decideAccess, nextCache, parseCache, parseTrialDays, purchasesToAcknowledge, resolvePurchases, serializeCache } from './entitlement';
+import { decideAccess, nextCache, parseCache, parseTrialDays, purchasesToAcknowledge, resolvePurchases, serializeCache, touchCache } from './entitlement';
 import { OFFLINE_GRACE_MS, SUBSCRIPTION_PRODUCT_ID, type EntitlementCache, type PlayPurchase, type Verification } from './types';
 
 const NOW = Date.parse('2026-10-02T12:00:00Z');
@@ -21,6 +21,7 @@ const cache = (overrides: Partial<EntitlementCache> = {}): EntitlementCache => (
   lastVerifiedAt: NOW - HOUR,
   lastStatus: 'active',
   everEntitled: true,
+  seenAt: NOW - HOUR,
   ...overrides,
 });
 
@@ -124,6 +125,45 @@ describe('decideAccess — when Google Play cannot be reached', () => {
   });
 });
 
+describe('decideAccess — turning the clock back', () => {
+  it('a clock found more than an hour behind the latest time already seen voids the remembered check', () => {
+    const tampered = cache({ lastVerifiedAt: NOW - 2 * HOUR, seenAt: NOW + 2 * HOUR }); // the app has seen a time 2 h later than "now"
+    expect(decideAccess({ verification: failed(), cache: tampered, now: NOW })).toMatchObject({ status: 'unverified', entitled: false });
+    expect(decideAccess({ verification: null, cache: tampered, now: NOW }).status).toBe('checking');
+  });
+
+  it('the classic trick — an expired subscription kept alive offline by rolling the date back — no longer works', () => {
+    // verified 70 h ago, then (offline) the clock was moved back to 10 h after that check, 60 h in the past
+    const lastCheck = NOW - 70 * HOUR;
+    const seenLater = cache({ lastVerifiedAt: lastCheck, seenAt: NOW - HOUR });
+    const rolledBack = lastCheck + 10 * HOUR;
+    expect(decideAccess({ verification: failed(), cache: seenLater, now: rolledBack }).entitled).toBe(false);
+  });
+
+  it('small corrections from the network time service are fine', () => {
+    const slightlyBehind = cache({ seenAt: NOW + 30 * 60 * 1000 });
+    expect(decideAccess({ verification: failed(), cache: slightlyBehind, now: NOW }).entitled).toBe(true);
+  });
+
+  it('a genuine answer from Google Play resets the reference, so a clock that was wrong can recover', () => {
+    const wasAhead = cache({ seenAt: NOW + 10 * HOUR });
+    const verification = ok([purchase()]);
+    const access = decideAccess({ verification, cache: wasAhead, now: NOW });
+    expect(access.entitled).toBe(true); // fresh answers always win
+    expect(nextCache(wasAhead, verification, access)!.seenAt).toBe(NOW);
+  });
+});
+
+describe('touchCache', () => {
+  it('remembers the latest time shown by the clock, at a few minutes’ resolution, and never invents a memory', () => {
+    expect(touchCache(null, NOW)).toBeNull();
+    const base = cache({ seenAt: NOW });
+    expect(touchCache(base, NOW + 60_000)).toBe(base); // too soon to bother
+    expect(touchCache(base, NOW + 10 * 60_000)!.seenAt).toBe(NOW + 10 * 60_000);
+    expect(touchCache(base, NOW - HOUR)).toBe(base); // never moves backwards
+  });
+});
+
 describe('decideAccess — before the first check finishes', () => {
   it('shows "checking" when nothing is remembered', () => {
     expect(decideAccess({ verification: null, cache: null, now: NOW })).toEqual({ status: 'checking', entitled: false, stale: false, lapsed: false });
@@ -142,7 +182,7 @@ describe('nextCache', () => {
   it('remembers a real answer, and that the person has been entitled', () => {
     const verification = ok([purchase()]);
     const access = decideAccess({ verification, cache: null, now: NOW });
-    expect(nextCache(null, verification, access)).toEqual({ lastVerifiedAt: NOW, lastStatus: 'active', everEntitled: true });
+    expect(nextCache(null, verification, access)).toEqual({ lastVerifiedAt: NOW, lastStatus: 'active', everEntitled: true, seenAt: NOW });
   });
 
   it('keeps "ever entitled" after the subscription ends', () => {
@@ -152,6 +192,7 @@ describe('nextCache', () => {
       lastVerifiedAt: NOW,
       lastStatus: 'inactive',
       everEntitled: true,
+      seenAt: NOW,
     });
   });
 
@@ -169,7 +210,12 @@ describe('the stored memory', () => {
     expect(stored).not.toMatch(/token|secret/i);
   });
 
-  it.each([null, '', 'not json', '[]', '{"v":2}', '{"v":1,"lastVerifiedAt":"x","lastStatus":"active","everEntitled":true}', '{"v":1,"lastVerifiedAt":1,"lastStatus":"gold","everEntitled":true}', '{"v":1,"lastVerifiedAt":1,"lastStatus":"active","everEntitled":"yes"}'])(
+  it('reads memories written before the clock check existed, starting from their last verification', () => {
+    const old = JSON.stringify({ v: 1, lastVerifiedAt: 1234, lastStatus: 'active', everEntitled: true });
+    expect(parseCache(old)).toEqual({ lastVerifiedAt: 1234, lastStatus: 'active', everEntitled: true, seenAt: 1234 });
+  });
+
+  it.each([null, '', 'not json', '[]', '{"v":2}', '{"v":1,"lastVerifiedAt":"x","lastStatus":"active","everEntitled":true}', '{"v":1,"lastVerifiedAt":1,"lastStatus":"gold","everEntitled":true}', '{"v":1,"lastVerifiedAt":1,"lastStatus":"active","everEntitled":"yes"}', '{"v":1,"lastVerifiedAt":1,"lastStatus":"active","everEntitled":true,"seenAt":"later"}'])(
     'treats %j as no memory',
     (text) => {
       expect(parseCache(text)).toBeNull();

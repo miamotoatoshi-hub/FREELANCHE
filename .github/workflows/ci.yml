@@ -14,6 +14,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: bash scripts/scan-secrets.sh
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -27,3 +28,31 @@ jobs:
           path: |
             test-results
             playwright-report
+
+  # A real Android build on GitHub's servers (they ship the Android SDK): compiles the app including the native
+  # billing plugin, and runs the native unit tests. It builds the *debug* app, so no signing key or licence key is needed.
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - run: npm run android:sync
+      - name: Compile the app and run the native unit tests
+        working-directory: android
+        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-reports
+          path: |
+            android/app/build/reports
+            android/app/build/test-results

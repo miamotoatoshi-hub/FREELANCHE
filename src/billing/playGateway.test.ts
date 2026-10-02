@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createPlayGateway, mapNativeError, toPlayPurchases, type FreelancheBillingPlugin } from './playGateway';
+import { createPlayGateway, createPlaySealer, mapNativeError, toPlayPurchases, type FreelancheBillingPlugin } from './playGateway';
 import { BillingError, SUBSCRIPTION_PRODUCT_ID } from './types';
 
 function fakePlugin(overrides: Partial<FreelancheBillingPlugin> = {}): FreelancheBillingPlugin {
@@ -9,6 +9,8 @@ function fakePlugin(overrides: Partial<FreelancheBillingPlugin> = {}): Freelanch
     purchase: vi.fn().mockResolvedValue({ outcome: 'purchased' }),
     acknowledge: vi.fn().mockResolvedValue(undefined),
     openManageSubscriptions: vi.fn().mockResolvedValue(undefined),
+    sign: vi.fn().mockImplementation(async ({ text }: { text: string }) => ({ mac: `mac(${text})` })),
+    verify: vi.fn().mockImplementation(async ({ text, mac }: { text: string; mac: string }) => ({ valid: mac === `mac(${text})` })),
     addListener: vi.fn().mockResolvedValue({ remove: vi.fn().mockResolvedValue(undefined) }),
     ...overrides,
   };
@@ -49,6 +51,34 @@ describe('toPlayPurchases', () => {
       { productId: 'p', purchaseToken: 't1', purchaseTimeMs: 123, state: 'purchased', autoRenewing: true, acknowledged: false },
       { productId: 'p', purchaseToken: 't2', purchaseTimeMs: 124, state: 'pending', autoRenewing: false, acknowledged: false },
     ]);
+  });
+});
+
+describe('purchases Google did not sign', () => {
+  const base = { productId: 'freelanche_premium', purchaseToken: 't', purchaseTime: 1, purchaseState: 'purchased' as const, autoRenewing: true, acknowledged: true };
+
+  it('are dropped as if never listed — a fake Play Store cannot hand out a subscription', () => {
+    expect(toPlayPurchases([{ ...base, signatureValid: false }])).toEqual([]);
+  });
+
+  it('keep genuine purchases, and accept builds that have no licence key to check against (debug only)', () => {
+    expect(toPlayPurchases([{ ...base, signatureValid: true }])).toHaveLength(1);
+    expect(toPlayPurchases([{ ...base, signatureValid: null }])).toHaveLength(1);
+    expect(toPlayPurchases([base])).toHaveLength(1);
+  });
+
+  it('end to end: a forged purchase leaves the gateway reporting no subscription', async () => {
+    const plugin = fakePlugin({ queryPurchases: vi.fn().mockResolvedValue({ purchases: [{ ...base, signatureValid: false }] }) });
+    await expect(createPlayGateway(plugin).queryPurchases()).resolves.toEqual([]);
+  });
+});
+
+describe('the Keystore stamp', () => {
+  it('signs and verifies through the native plugin', async () => {
+    const sealer = createPlaySealer(fakePlugin());
+    const mac = await sealer.sign('hello');
+    await expect(sealer.verify('hello', mac)).resolves.toBe(true);
+    await expect(sealer.verify('hello!', mac)).resolves.toBe(false);
   });
 });
 

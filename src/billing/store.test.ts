@@ -215,7 +215,7 @@ describe('restoring purchases', () => {
 });
 
 describe('when Google Play cannot be reached', () => {
-  const remembered = (ageMs: number) => serializeCache({ lastVerifiedAt: T0 - ageMs, lastStatus: 'active', everEntitled: true });
+  const remembered = (ageMs: number) => serializeCache({ lastVerifiedAt: T0 - ageMs, lastStatus: 'active', everEntitled: true, seenAt: T0 - ageMs });
 
   it('a subscriber who verified recently stays in, marked as stale', async () => {
     const { store } = setup({ fail: { query: 'service-unavailable' } }, remembered(2 * 24 * HOUR));
@@ -243,6 +243,25 @@ describe('when Google Play cannot be reached', () => {
     setPlay({ fail: {}, purchases: [] });
     await store.refresh();
     expect(store.getSnapshot().access).toMatchObject({ status: 'inactive', entitled: false, stale: false });
+    store.stop();
+  });
+});
+
+describe('the clock', () => {
+  it('keeps note of the latest time seen, even while Google Play cannot be reached', async () => {
+    const { store, memory, advance } = setup({ fail: { query: 'service-unavailable' } }, serializeCache({ lastVerifiedAt: T0 - HOUR, lastStatus: 'active', everEntitled: true, seenAt: T0 - HOUR }));
+    advance(30 * 60 * 1000);
+    await store.start();
+    expect(JSON.parse(memory()!).seenAt).toBe(T0 + 30 * 60 * 1000);
+    store.stop();
+  });
+
+  it('does not unlock offline when the clock was turned back behind the latest time seen', async () => {
+    const tampered = serializeCache({ lastVerifiedAt: T0 - 2 * HOUR, lastStatus: 'active', everEntitled: true, seenAt: T0 + 5 * HOUR });
+    const { store } = setup({ fail: { query: 'service-unavailable' } }, tampered);
+    expect(store.getSnapshot().access.status).toBe('checking'); // not even optimistic
+    await store.start();
+    expect(store.getSnapshot().access).toMatchObject({ status: 'unverified', entitled: false });
     store.stop();
   });
 });
@@ -297,7 +316,7 @@ describe('a device without Google Play Billing', () => {
         openManageSubscriptions: () => Promise.resolve(),
         onPurchasesChanged: () => () => undefined,
       },
-      storage: { read: () => serializeCache({ lastVerifiedAt: T0, lastStatus: 'active', everEntitled: true }), write: () => undefined },
+      storage: { read: () => serializeCache({ lastVerifiedAt: T0, lastStatus: 'active', everEntitled: true, seenAt: T0 }), write: () => undefined },
       now: () => T0,
     });
     await store.start();
