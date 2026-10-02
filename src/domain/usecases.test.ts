@@ -10,6 +10,7 @@ import {
   importEntries,
   setDefaultGoal,
   setMonthGoal,
+  setName,
   updateIncome,
 } from './usecases';
 
@@ -199,5 +200,34 @@ describe('importEntries', () => {
   it('keeps two genuinely identical rows from one file', () => {
     const doubled = [rows[0]!, rows[0]!];
     expect(importEntries(dataWith([]), doubled, testDeps()).added).toBe(2);
+  });
+});
+
+describe('setName', () => {
+  it('stores a cleaned nickname and can clear it', () => {
+    const named = setName(dataWith([]), '  Alex   Doe ');
+    expect(named.ok && named.value.settings.name).toBe('Alex Doe');
+    const cleared = named.ok ? setName(named.value, '   ') : named;
+    expect(cleared.ok && cleared.value.settings.name).toBe('');
+  });
+
+  it('accepts names in any script, including emoji', () => {
+    for (const name of ['Алекс', '李雷', 'سامي', 'आरव', 'রাহুল', '山田太郎', 'José', 'Zoë 🎉']) {
+      const result = setName(dataWith([]), name);
+      expect(result.ok && result.value.settings.name, name).toBe(name);
+    }
+  });
+
+  it('strips control and bidi-override characters and rejects over-long names', () => {
+    const spoofed = setName(dataWith([]), 'Al\u202Eex\u0000');
+    expect(spoofed.ok && spoofed.value.settings.name).toBe('Al ex');
+    expect(setName(dataWith([]), 'x'.repeat(41))).toEqual({ ok: false, error: 'name-too-long' });
+    expect(setName(dataWith([]), 'x'.repeat(40)).ok).toBe(true);
+  });
+
+  it('returns the same data object when nothing changed', () => {
+    const data = dataWith([]);
+    const first = setName(data, 'Alex');
+    expect(first.ok && setName(first.value, 'Alex')).toEqual({ ok: true, value: first.ok ? first.value : null });
   });
 });

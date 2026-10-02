@@ -1,11 +1,12 @@
 /**
- * English strings — the source of truth for every message key.
+ * English strings — the source of truth for every message key, and the
+ * fallback for any key another language lacks.
+ *
  * Placeholders look like {name}. Plural messages are stored as `base.one`,
- * `base.other` (and `few`/`many` in languages that need them).
+ * `base.other` (plus `zero`/`two`/`few`/`many` in languages that need them).
  */
 export const en = {
   'app.name': 'Freelanche',
-  'app.tagline': 'Freelance income, simply tracked.',
 
   'common.cancel': 'Cancel',
   'common.delete': 'Delete',
@@ -16,6 +17,7 @@ export const en = {
   'common.edit': 'Edit',
   'common.retry': 'Try again',
   'common.done': 'Done',
+  'common.clear': 'Clear',
 
   'nav.label': 'Main navigation',
   'nav.home': 'Home',
@@ -29,25 +31,42 @@ export const en = {
   'month.selector': 'Selected month',
 
   'onboarding.step': 'Step {current} of {total}',
-  'onboarding.welcome.title': 'Track your freelance income.',
-  'onboarding.welcome.subtitle':
-    "See how much you've earned, how close you are to your goal, and what you need to make next.",
-  'onboarding.welcome.cta': 'Get started',
-  'onboarding.goal.title': "What's your monthly goal?",
+  'onboarding.language.title': 'What language would you like to use in the app?',
+  'onboarding.language.hint': 'You can change this later in Settings.',
+  'onboarding.name.title': 'What should we call you?',
+  'onboarding.name.hint': 'A nickname is fine. It stays on this device.',
+  'onboarding.name.placeholder': 'e.g. Alex',
+  'onboarding.name.skip': 'Skip for now',
+  'onboarding.currency.title': 'Which currency would you like to use?',
+  'onboarding.currency.hint': 'Pick the currency you earn in. If you change it later, nothing is converted.',
+  'onboarding.currency.suggested': 'Suggested for your device',
+  'onboarding.goal.title': 'What is your monthly income goal?',
   'onboarding.goal.hint': 'You can change this at any time.',
   'onboarding.goal.skip': "I'll set it later",
-  'onboarding.currency.title': 'Choose your currency',
-  'onboarding.currency.hint': 'Suggested for your device. Nothing is converted if you change it later.',
-  'onboarding.done.title': "You're ready.",
-  'onboarding.done.subtitle': "Let's make this month count.",
-  'onboarding.done.cta': 'Start tracking',
+  'onboarding.goal.cta': 'Start tracking',
+
+  'name.label': 'Your name or nickname',
+
+  'greeting.welcome': 'Welcome, {name}!',
+  'greeting.welcome.anon': 'Welcome!',
+  'greeting.dashboard': 'Your income dashboard, {name}',
+  'greeting.dashboard.anon': 'Your income dashboard',
+  'greeting.cheer': "Let's reach your income goal, {name}!",
+  'greeting.cheer.anon': "Let's reach your income goal!",
 
   'amount.label': 'Amount',
   'goal.amountLabel': 'Monthly goal amount',
 
-  'currency.more': 'More currencies',
-  'currency.fewer': 'Fewer currencies',
+  'language.list': 'Languages',
+
   'currency.list': 'Currencies',
+  'currency.search': 'Search currencies',
+  'currency.search.placeholder': 'Name, code or symbol',
+  'currency.popular': 'Popular',
+  'currency.all': 'All currencies',
+  'currency.empty': 'No currency matches “{query}”.',
+  'currency.results.one': '{count} currency found',
+  'currency.results.other': '{count} currencies found',
   'currency.change.title': 'Change currency to {currency}?',
   'currency.change.text':
     'Your existing amounts keep the same numbers and will be shown in {currency}. Nothing is converted.',
@@ -127,6 +146,8 @@ export const en = {
   'error.amount-decimals-none': "This currency doesn't use decimals.",
   'error.date-invalid': 'Choose a valid date.',
   'error.note-too-long': 'Keep the note under {max} characters.',
+  'error.name-too-long': 'Keep your name under {max} characters.',
+  'error.currency-required': 'Choose a currency to continue.',
   'error.goal-invalid': 'Enter a valid goal.',
   'error.currency-invalid': 'Choose a valid currency.',
   'error.not-found': 'That entry no longer exists.',
@@ -172,10 +193,13 @@ export const en = {
   'insights.compare.none': 'No previous income data',
 
   'settings.title': 'Settings',
+  'settings.section.profile': 'Profile',
   'settings.section.finance': 'Finance',
   'settings.section.appearance': 'Appearance',
   'settings.section.data': 'Data',
   'settings.section.about': 'About',
+  'settings.name': 'Name',
+  'settings.name.none': 'Not set',
   'settings.currency': 'Currency',
   'settings.goal': 'Monthly goal',
   'settings.goal.hint': 'Applies from this month on. Earlier months keep their goals.',
@@ -197,6 +221,10 @@ export const en = {
   'settings.privacy': 'Privacy',
   'settings.terms': 'Terms',
   'settings.saved': 'Saved',
+
+  'nameSheet.title': 'Your name',
+  'nameSheet.hint': 'Used to greet you in the app. A nickname is fine.',
+  'nameSheet.save': 'Save name',
 
   'deleteAll.title': 'Delete all data?',
   'deleteAll.text': 'This will permanently delete your income history and settings.',

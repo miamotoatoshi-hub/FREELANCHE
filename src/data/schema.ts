@@ -2,7 +2,7 @@ import { goalId } from '../domain/goals';
 import { isValidLocalDate } from '../domain/dates';
 import type { AppData, IncomeEntry, MonthlyGoal, ThemePreference, UserSettings } from '../domain/types';
 import { createInitialData, DEFAULT_SETTINGS, SCHEMA_VERSION } from '../domain/usecases';
-import { isValidCurrencyCode, MAX_NOTE_LENGTH, validateAmount } from '../domain/validation';
+import { isValidCurrencyCode, MAX_NOTE_LENGTH, normalizeName, validateAmount } from '../domain/validation';
 
 /**
  * Turns whatever was found in storage into trusted `AppData`. Anything that does
@@ -25,7 +25,10 @@ const isTimestamp = (value: unknown): value is string => typeof value === 'strin
 
 function parseSettings(raw: unknown): UserSettings {
   const source = isRecord(raw) ? raw : {};
+  const name = normalizeName(source.name);
   return {
+    // Older saved data has no name; an unusable one is simply dropped.
+    name: name.ok ? name.value : DEFAULT_SETTINGS.name,
     currency: isValidCurrencyCode(source.currency) ? source.currency : DEFAULT_SETTINGS.currency,
     defaultMonthlyGoal:
       validateAmount(source.defaultMonthlyGoal, { allowZero: true }) === null

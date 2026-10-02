@@ -107,6 +107,7 @@
 /* ── amounts ──────────────────────────────────────────────────────────── */
 
 .amount {
+  unicode-bidi: isolate;
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -771,15 +772,110 @@
 .currencies {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--s-2);
+  gap: var(--s-3);
 }
 
 .currencies__list {
   width: 100%;
   display: flex;
   flex-direction: column;
+  gap: var(--s-4);
+}
+
+.currencies--contained .currencies__list {
+  max-height: min(52dvh, 28rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block-end: var(--s-2);
+}
+
+.currencies__section {
+  display: flex;
+  flex-direction: column;
   gap: var(--s-2);
+}
+
+.currencies__heading {
+  padding-inline: var(--s-1);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.currencies__empty {
+  padding: var(--s-6) var(--s-2);
+  text-align: center;
+  color: var(--text-2);
+}
+
+/* Search field. In onboarding it stays visible while the long list scrolls under it. */
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.search:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+.search__icon {
+  position: absolute;
+  inset-inline-start: var(--s-4);
+  color: var(--text-2);
+  pointer-events: none;
+}
+
+.search__input {
+  flex: 1;
+  min-width: 0;
+  min-height: 50px;
+  padding-block: 0;
+  padding-inline: calc(var(--s-4) + 20px + var(--s-3)) var(--tap);
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search__input:focus-visible {
+  outline: none;
+}
+
+.search__input::placeholder {
+  color: var(--text-2);
+  opacity: 0.85;
+}
+
+.search__input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search__clear {
+  position: absolute;
+  inset-inline-end: 0;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 12px;
+  color: var(--text-2);
+}
+
+.onboarding .search {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-shadow: 0 0 0 var(--s-2) var(--bg);
 }
 
 .currency {
@@ -806,8 +902,9 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: 40px;
+  min-width: 40px;
   height: 40px;
+  padding-inline: var(--s-1);
   border-radius: 12px;
   background: var(--surface-2);
   font-weight: 700;
@@ -856,6 +953,7 @@
 }
 
 .chart__frame {
+  direction: ltr;
   position: relative;
   width: 100%;
   height: 208px;
@@ -919,7 +1017,7 @@
   display: flex;
   align-items: center;
   gap: var(--s-1);
-  padding-right: var(--s-1);
+  padding-inline-end: var(--s-1);
   border-radius: var(--r-md);
 }
 
@@ -978,7 +1076,7 @@
 
 .menu__list {
   position: absolute;
-  right: 0;
+  inset-inline-end: 0;
   top: calc(100% + 2px);
   z-index: 10;
   min-width: 10.5rem;
@@ -989,6 +1087,10 @@
   box-shadow: 0 10px 32px rgba(0, 0, 0, 0.18);
   animation: dialog-in var(--dur-fast) var(--ease) both;
   transform-origin: top right;
+}
+
+[dir='rtl'] .menu__list {
+  transform-origin: top left;
 }
 
 .menu__item {
@@ -1115,4 +1217,70 @@
   from {
     transform: scale(0);
   }
+}
+
+/* ── language picker ──────────────────────────────────────────────────── */
+
+.languages {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: var(--s-2);
+}
+
+.language {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 60px;
+  padding: var(--s-2) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) ease,
+    background-color var(--dur-fast) ease;
+}
+
+.language:hover {
+  border-color: var(--border-strong);
+}
+
+.language.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.language:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.language__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.language__native {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+.language__english {
+  font-size: 0.8125rem;
+  color: var(--text-2);
+}
+
+.language__check {
+  flex: none;
+  color: var(--accent);
+}
+
+/* Direction-aware arrows: "back" and "forward" follow the reading direction. */
+[dir='rtl'] .icon--directional {
+  transform: scaleX(-1);
 }

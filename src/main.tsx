@@ -5,6 +5,7 @@ import { createLocalPersistence, getBrowserStorage } from './data/persistence';
 import { suggestCurrency } from './format/currencies';
 import { detectLanguage, deviceLocales } from './format/locale';
 import { I18nProvider } from './i18n/I18nProvider';
+import { loadLocale } from './i18n/registry';
 import { createId } from './lib/id';
 import { StoreProvider } from './state/context';
 import { AppStore } from './state/store';
@@ -18,21 +19,28 @@ const locales = deviceLocales();
 const store = new AppStore(createLocalPersistence(getBrowserStorage()), {
   now: () => new Date(),
   newId: createId,
-  defaults: { language: detectLanguage(locales), currency: suggestCurrency(locales) },
+  defaults: { language: detectLanguage(locales), currency: suggestCurrency(locales) ?? 'EUR' },
 });
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <StoreProvider store={store}>
-      <I18nProvider>
-        <App />
-      </I18nProvider>
-    </StoreProvider>
-  </StrictMode>,
-);
+async function start() {
+  // Fetch the saved language's strings first, so the very first paint is already in that language.
+  await loadLocale(store.getSnapshot().data.settings.language);
 
-// The first paint is React's; drop the static boot screen.
-document.getElementById('boot')?.remove();
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <StoreProvider store={store}>
+        <I18nProvider>
+          <App />
+        </I18nProvider>
+      </StoreProvider>
+    </StrictMode>,
+  );
+
+  // The first paint is React's; drop the static boot screen.
+  document.getElementById('boot')?.remove();
+}
+
+void start();
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {

@@ -12,8 +12,10 @@ No account. No ads. No network. Your data never leaves the device.
 - **Add income** — one bottom sheet: amount, optional note, date (defaults to today), quick-add buttons. Three taps for the usual case.
 - **History** — entries grouped by day, edit / delete (with confirmation), and a simple calendar to look at a single day.
 - **Insights** — best day, average per working day, days with income, income streak, and a neutral comparison with last month. Nothing is shown that the data can't support.
-- **Settings** — currency, monthly goal, light / dark / system theme, English / Русский, CSV export & import, delete everything.
-- Month navigation across every screen, a different goal per month, decimal amounts, seven main currencies (plus 18 more).
+- **First launch** — four short steps, always in this order: **language → name → currency → monthly goal**. The goal field shows the currency you just picked (€2,000 · $2,000 · ₽200,000); nothing is assumed, and the goal can be skipped.
+- **Settings** — name, language, currency, monthly goal, light / dark / system theme, CSV export & import, delete everything.
+- **12 languages** — English, 中文 (简体), हिन्दी, Español, Français, العربية, বাংলা, Português, Русский, اردو, Bahasa Indonesia, 日本語 — with right-to-left layouts for Arabic and Urdu. See [Languages](#languages-and-localisation).
+- Month navigation across every screen, a different goal per month, decimal amounts, ~110 currencies searchable by name, code or symbol.
 
 ## Run it
 
@@ -29,12 +31,12 @@ It's a PWA: open it on a phone, "Add to Home Screen", and it behaves like a nati
 ### Tests
 
 ```bash
-npm test             # 160+ unit tests (Vitest): calculations, dates, money, CSV, goals, store, persistence, i18n
+npm test             # 320+ unit tests (Vitest): calculations, dates, money, CSV, goals, store, persistence, i18n, onboarding
 npm run lint         # ESLint incl. React hooks rules
-npm run test:e2e     # ~50 real-browser tests (Playwright) against the production build, incl. an axe accessibility audit
+npm run test:e2e     # ~140 real-browser tests (Playwright) against the production build, incl. axe audits and a 12-language layout sweep
 ```
 
-The e2e suite drives the production build in Chromium at phone size and runs the spec's QA checklist end to end: onboarding, add / edit / delete, goal reached / exceeded, month switching, persistence across reloads, theme switching, CSV round-trip, offline use, time-zone safety, Russian, keyboard operation and WCAG 2 A/AA audits in both themes. Set `CHROMIUM_PATH` if your Chromium isn't at `/opt/pw-browsers/chromium`. `SHOTS_DIR=/some/dir npx playwright test e2e/visual.spec.ts` captures a screenshot tour for design review.
+The e2e suite drives the production build in Chromium at phone size and runs the spec's QA checklist end to end: onboarding, add / edit / delete, goal reached / exceeded, month switching, persistence across reloads, theme switching, CSV round-trip, offline use (including switching to every language offline), time-zone safety, keyboard operation and WCAG 2 A/AA audits in both themes. `e2e/onboarding.spec.ts` covers the four-step flow in all 12 languages; `e2e/i18n.spec.ts` checks that every screen and sheet fits without overflow or clipped text at 320 × 568, 390 × 844 and 1280 × 800, and that Arabic and Urdu are properly mirrored. Set `CHROMIUM_PATH` if your Chromium isn't at `/opt/pw-browsers/chromium`. `SHOTS_DIR=/some/dir npx playwright test e2e/visual.spec.ts` captures a screenshot tour for design review.
 
 ## Architecture
 
@@ -45,8 +47,9 @@ src/
              validation · usecases · csv
   data/      schema (validate what's read back) · persistence (one atomic JSON document)
   state/     AppStore (useSyncExternalStore) — use case → persist → publish
-  format/    Intl-based money / date / percent formatters, currencies, locale detection
-  i18n/      en + ru dictionaries (typed keys, plural rules), provider
+  format/    Intl-based money / date / number formatters, currency catalogue + search, live amount-field grouping, locale detection
+  i18n/      languages (the list) · registry (lazy loaders) · createTranslator · provider
+             locales/<code>.ts — one dictionary per language, typed against English
   ui/        components/ · screens/ · sheets/ · hooks/
   styles/    tokens (light + dark) · base · components · screens
 ```
@@ -69,12 +72,26 @@ UI  →  store actions  →  use cases (pure)  →  persistence  →  localStora
 | **Money** | Stored as integer *hundredths of the major unit* for every currency — no floats, no drift. Using one scale for all currencies means switching currency never rewrites data. Zero-decimal currencies (JPY, KRW) reject fractions. |
 | **Dates** | Entry dates are `YYYY-MM-DD` strings — the calendar day the user meant. All arithmetic goes through UTC internally, so time zones and DST cannot shift a date. `createdAt` / `updatedAt` are separate UTC instants. "Today" is re-read on focus and every 30 s, so it follows midnight and time-zone changes. |
 | **Goals** | One goal per month, carried forward until changed. Changing the goal in Settings ("from this month on") or for a month never alters earlier months — the previous value is pinned first. `0` means "no goal": the dashboard still works and simply offers *Set goal*. |
-| **Currency change** | One currency for the whole app. Changing it asks first, explains that **nothing is converted**, keeps every number, and relabels entries. |
+| **Currency** | Chosen explicitly during onboarding, *before* the goal — never pre-selected, never assumed (the device's likely currency is only offered as a suggestion). One currency for the whole app. Changing it later asks first, explains that **nothing is converted**, keeps every number, and relabels entries. There are no exchange rates anywhere in the app. |
+| **Name** | An optional nickname (≤ 40 characters, any script) stored with the settings and used to greet you. Control and bidi-override characters are stripped; it is rendered as text only and wrapped in Unicode isolates so a name in another script cannot scramble the sentence around it. |
 | **Daily targets** | *Required per day* = remaining ÷ remaining days (including today), rounded **up** to a whole unit so following it never leaves the goal short. It's hidden for past and future months. |
 | **Progress** | The ring is capped at 100 %, the numbers are not ("114 % of goal", "€420 over goal"). "100 %" only appears once the goal is truly met. |
-| **Amount input** | Accepts `.` or `,` as the decimal mark and understands pasted `1,234.50` / `1.234,50`. Locale decides symbol placement and separators via `Intl`. |
+| **Amount input** | Digits are grouped live as you type, in the language's own style (`3 000`, `3,000`, `3.000`, `3,00,000`). Accepts `.` or `,` as the decimal mark, understands pasted `1,234.50` / `1.234,50`, and reads Arabic-Indic, Persian, Devanagari, Bengali and full-width digits. Locale decides symbol placement and separators via `Intl`. |
 | **CSV** | `Date,Amount,Currency,Note`, ISO dates, `.` decimals, UTF-8 with BOM (Excel-friendly). Notes that would be read as spreadsheet formulas are neutralised. Import never overwrites: it previews what will happen, skips duplicates and other-currency rows, and reports unreadable rows. |
 | **Privacy** | No accounts, analytics or network calls. A production Content-Security-Policy (`connect-src 'self'`) means the app *cannot* talk to another server even by mistake; an e2e test asserts no external request is made. Amounts and notes are never logged. |
+
+### Languages and localisation
+
+All user-facing text lives in `src/i18n/locales/<code>.ts`, one file per language, each typed against the English dictionary — a missing or misspelt key is a compile error, and a unit test also checks every language for completeness, matching `{placeholders}`, plural categories and leftover English. Each language is a separate lazily loaded chunk (3–5 kB gzipped); English is always bundled as the fallback, so a string that is somehow absent shows the English text rather than a key. The service worker precaches every chunk, so any language works offline.
+
+- **Choosing** — the first onboarding step lists the 12 languages in their own scripts; picking one switches the interface at once. It is stored with the settings and mirrored to `freelanche:lang`, which `public/theme-init.js` reads before first paint, so the `lang`/`dir` attributes (and therefore fonts and RTL) are right from the first frame. It can be changed in Settings at any time. Existing users keep their language and are not sent through onboarding again; the name defaults to empty.
+- **Formatting** — numbers, currency, dates, month names, percentages, plurals and the first day of the week all come from `Intl` for the language's regional locale (or the device's, when it already speaks that language). The Gregorian calendar is always used. Plurals use `Intl.PluralRules`, so Arabic (six forms) and Russian (three) are correct.
+- **Right-to-left** — Arabic and Urdu set `dir="rtl"`; the layout uses CSS logical properties, directional icons flip, the progress dots and navigation order mirror, and the chart plots time left to right as numbers do everywhere. Amounts and numeric fields stay left-to-right inside RTL pages.
+- **Fonts** — no web fonts are downloaded (the app makes no network requests). Each script gets a system font stack (`:lang(zh)`, `:lang(ja)`, `:lang(hi)`, `:lang(bn)`, `:lang(ar)`, `:lang(ur)`), taller line heights for scripts with stacked marks, and no letter-spacing or forced capitals on connected or case-less scripts.
+
+**To add a language:** add an entry to `src/i18n/languages.ts`, create `src/i18n/locales/<code>.ts` with every key of `en.ts`, and register its loader in `src/i18n/registry.ts`. The tests tell you what is still missing.
+
+> The translations were written without a professional translator. Native-speaker review is recommended before release, especially for Hindi, Bengali, Urdu and Arabic.
 
 ### Accessibility
 
@@ -82,10 +99,10 @@ Semantic landmarks and headings; every control has an accessible name; modals tr
 
 ### Deliberately not built
 
-Per the product brief — invoices, clients, expenses, taxes, budgets, bank sync, social features. The domain layer keeps entries, goals and settings separate so they can be added later.
+Per the product brief — invoices, clients, expenses, taxes, budgets, bank sync, social features, subscriptions or paywalls. The domain layer keeps entries, goals and settings separate so they can be added later.
 
 **Reminders** (spec §75, "optional") were left out: browsers cannot reliably fire scheduled local notifications for an installed web app without a push server, which would break the "no network, no account" promise. A native wrapper could add this with local notifications, off by default.
 
 ## Tech
 
-React 19 · TypeScript (strict) · Vite · no runtime dependencies besides React · hand-written SVG chart and icons · ~99 KB gzipped JS.
+React 19 · TypeScript (strict) · Vite · no runtime dependencies besides React · hand-written SVG chart and icons · ~100 KB gzipped JS plus one small chunk per language, loaded on demand.

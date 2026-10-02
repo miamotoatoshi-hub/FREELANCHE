@@ -1,5 +1,5 @@
 import { test } from '@playwright/test';
-import { freezeClock, goTo, seed } from './helpers';
+import { LANGUAGES, dict, freezeClock, goTo, seed } from './helpers';
 
 /**
  * Screenshot tour for design review. Only runs when SHOTS_DIR is set:
@@ -79,21 +79,82 @@ test('goal reached / exceeded / no goal', async ({ browser }) => {
   }
 });
 
-test('onboarding + splash', async ({ page }) => {
+test('onboarding, four steps', async ({ page }) => {
   await freezeClock(page);
   await page.goto('/');
   await page.waitForTimeout(500);
-  await page.screenshot({ path: `${dir}/onb-0-splash.png` });
-  await page.locator('.splash').click();
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: `${dir}/onb-1-welcome.png` });
-  await page.getByRole('button', { name: 'Get started' }).click();
-  await page.waitForTimeout(300);
-  await page.screenshot({ path: `${dir}/onb-2-goal.png` });
-  await page.getByLabel('Monthly goal amount').fill('3000');
+  await page.screenshot({ path: `${dir}/onb-1-language.png` });
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.waitForTimeout(300);
-  await page.screenshot({ path: `${dir}/onb-3-currency.png`, fullPage: true });
+  await page.getByLabel('Your name').fill('Alex');
+  await page.screenshot({ path: `${dir}/onb-2-name.png` });
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${dir}/onb-3-currency.png` });
+  await page.getByRole('searchbox', { name: 'Search currencies' }).fill('eur');
+  await page.locator('label.currency').first().click();
+  await page.screenshot({ path: `${dir}/onb-3b-currency-chosen.png` });
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${dir}/onb-4-goal.png` });
+  await page.getByLabel('Monthly goal amount').fill('3000');
+  await page.screenshot({ path: `${dir}/onb-4b-goal-filled.png` });
+});
+
+/** Every language, on the screens most likely to break: onboarding, home, settings; plus a 320px phone. */
+for (const language of LANGUAGES) {
+  test(`language tour: ${language.code}`, async ({ browser }) => {
+    const d = dict(language.code);
+    const context = await browser.newContext({ viewport: { width: 360, height: 740 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Europe/Berlin' });
+    const page = await context.newPage();
+    await freezeClock(page);
+    await page.goto('/');
+    await page.locator('label.language', { hasText: language.nativeName }).click();
+    await page.waitForTimeout(250);
+    await page.screenshot({ path: `${dir}/lang-${language.code}-1-onboarding.png` });
+    await page.getByRole('button', { name: d['common.continue'] }).click();
+    await page.getByLabel(d['name.label']!).fill('Alex');
+    await page.waitForTimeout(250);
+    await page.screenshot({ path: `${dir}/lang-${language.code}-2-name.png` });
+    await page.getByRole('button', { name: d['common.continue'] }).click();
+    await page.waitForTimeout(250);
+    await page.screenshot({ path: `${dir}/lang-${language.code}-3-currency.png` });
+    await page.getByRole('searchbox', { name: d['currency.search'] }).fill('USD');
+    await page.locator('label.currency').first().click();
+    await page.getByRole('button', { name: d['common.continue'] }).click();
+    await page.getByLabel(d['goal.amountLabel']!).fill('3000');
+    await page.waitForTimeout(250);
+    await page.screenshot({ path: `${dir}/lang-${language.code}-4-goal.png` });
+    await context.close();
+
+    for (const [label, width, height] of [['phone', 360, 740], ['small', 320, 568]] as const) {
+      const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Europe/Berlin' });
+      const p = await ctx.newPage();
+      await freezeClock(p);
+      await seed(p, { entries: ENTRIES, language: language.code, name: 'Alex', theme: 'light' });
+      await p.goto('/');
+      await p.waitForTimeout(500);
+      await p.screenshot({ path: `${dir}/lang-${language.code}-5-home-${label}.png` });
+      await goTo(p, 'Settings', language.code);
+      await p.waitForTimeout(250);
+      await p.screenshot({ path: `${dir}/lang-${language.code}-6-settings-${label}.png`, fullPage: true });
+      await ctx.close();
+    }
+  });
+}
+
+test('desktop width', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1, locale: 'en-US', timezoneId: 'Europe/Berlin' });
+  for (const code of ['en', 'ar']) {
+    const page = await context.newPage();
+    await freezeClock(page);
+    await seed(page, { entries: ENTRIES, language: code, name: 'Alex', theme: 'light' });
+    await page.goto('/');
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `${dir}/desktop-${code}-home.png` });
+    await page.close();
+  }
+  await context.close();
 });
 
 test('stress: long amounts, Russian, yen, presets', async ({ browser }) => {

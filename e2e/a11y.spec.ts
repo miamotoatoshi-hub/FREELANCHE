@@ -72,13 +72,31 @@ test('states: empty, no goal, goal reached, goal exceeded pass axe', async ({ br
   }
 });
 
-test('onboarding and its currency list pass axe', async ({ page }) => {
+test('every onboarding step passes axe', async ({ page }) => {
   await freezeClock(page);
   await page.goto('/');
-  await page.locator('.splash').click();
-  await audit(page, 'welcome');
-  await page.getByRole('button', { name: 'Get started' }).click();
-  await audit(page, 'goal');
+  await audit(page, 'language');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await audit(page, 'name');
   await page.getByRole('button', { name: 'Continue' }).click();
   await audit(page, 'currency');
+  await page.getByRole('searchbox', { name: 'Search currencies' }).fill('ruble');
+  await audit(page, 'currency search');
+  await page.locator('label.currency').first().click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await audit(page, 'goal');
 });
+
+for (const code of ['ar', 'ur', 'hi', 'bn', 'zh', 'ja', 'ru']) {
+  test(`the app passes axe in ${code}`, async ({ page }) => {
+    await freezeClock(page);
+    await seed(page, { entries: ENTRIES, language: code, name: 'Alex' });
+    await page.goto('/');
+    await page.waitForTimeout(300);
+    await audit(page, `${code} home`);
+    await goTo(page, 'History', code);
+    await audit(page, `${code} history`);
+    await goTo(page, 'Settings', code);
+    await audit(page, `${code} settings`);
+  });
+}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { YearMonth } from '../domain/types';
 import { useI18n } from '../i18n/I18nProvider';
+import { useAppSelector } from '../state/context';
 import { AddIncomeSheet } from './sheets/AddIncomeSheet';
 import { GoalSheet } from './sheets/GoalSheet';
 import { UiContext, type UiApi } from './UiContext';
@@ -13,8 +14,9 @@ type ActiveSheet =
 const TOAST_MS = 2600;
 
 /** Owns the app-wide sheets and the toast, so any screen can open them with one call. */
-export function UiProvider({ children }: { children: ReactNode }) {
+export function UiProvider({ children, welcome = false }: { children: ReactNode; /** Greet the person once, right after onboarding. */ welcome?: boolean }) {
   const { t } = useI18n();
+  const name = useAppSelector((s) => s.data.settings.name);
   const [sheet, setSheet] = useState<ActiveSheet | null>(null);
   const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
   const toastId = useRef(0);
@@ -29,6 +31,14 @@ export function UiProvider({ children }: { children: ReactNode }) {
     toastId.current += 1;
     setToast({ id: toastId.current, message });
   }, []);
+
+  // "Welcome, Alex!" — once, on arrival from onboarding.
+  const greeted = useRef(false);
+  useEffect(() => {
+    if (!welcome || greeted.current) return;
+    greeted.current = true;
+    showToast(name ? t('greeting.welcome', { name }) : t('greeting.welcome.anon'));
+  }, [welcome, name, t, showToast]);
 
   const api = useMemo<UiApi>(
     () => ({

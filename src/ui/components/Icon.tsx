@@ -69,6 +69,12 @@ const ICONS = {
   upload: <path d="M12 15.5v-10M8 9l4-4 4 4M5 19.5h14" />,
   arrowUp: <path d="M12 19V6M6.5 11.5 12 6l5.5 5.5" />,
   arrowDown: <path d="M12 5v13M6.5 12.5 12 18l5.5-5.5" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4.5 4.5" />
+    </>
+  ),
   alert: (
     <>
       <circle cx="12" cy="12" r="8.5" />
@@ -84,10 +90,15 @@ interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {
   size?: number;
 }
 
+/** Arrows that point "forward/back" in reading order, so they flip in right-to-left layouts. */
+const DIRECTIONAL: ReadonlySet<IconName> = new Set(['chevronLeft', 'chevronRight']);
+
 /** Decorative by default (aria-hidden). Put the accessible name on the button that holds it. */
-export function Icon({ name, size = 24, ...rest }: IconProps) {
+export function Icon({ name, size = 24, className, ...rest }: IconProps) {
+  const classes = [DIRECTIONAL.has(name) ? 'icon--directional' : '', className].filter(Boolean).join(' ');
   return (
     <svg
+      className={classes || undefined}
       width={size}
       height={size}
       viewBox="0 0 24 24"

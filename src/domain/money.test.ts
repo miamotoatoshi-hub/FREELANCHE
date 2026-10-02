@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   amountToInput,
+  normalizeNumerals,
   currencyFractionDigits,
   fromMajor,
   MAX_AMOUNT,
@@ -114,5 +115,33 @@ describe('amountToInput / fromMajor', () => {
   it('knows fraction digits per currency', () => {
     expect(currencyFractionDigits('EUR')).toBe(2);
     expect(currencyFractionDigits('JPY')).toBe(0);
+  });
+});
+
+describe('numerals from other scripts', () => {
+  it('normalises Arabic-Indic, Persian, Devanagari, Bengali and full-width digits and separators', () => {
+    expect(normalizeNumerals('٢٥٠٫٥')).toBe('250.5');
+    expect(normalizeNumerals('۱۲۳')).toBe('123');
+    expect(normalizeNumerals('२५०००')).toBe('25000');
+    expect(normalizeNumerals('২৫০')).toBe('250');
+    expect(normalizeNumerals('１２．５')).toBe('12.5');
+    expect(normalizeNumerals('١٬٢٣٤')).toBe('1,234');
+    expect(normalizeNumerals('abc 12')).toBe('abc 12');
+  });
+
+  it('parses amounts typed in any of them', () => {
+    expect(parse('٢٥٠٫٥')).toBe(25050);
+    expect(parse('۱۲۰۰')).toBe(120000);
+    expect(parse('२०००')).toBe(200000);
+    expect(parse('১২৫.৫০')).toBe(12550);
+    expect(parse('٣٬٠٠٠')).toBe(300000);
+  });
+
+  it('treats the larger zero-decimal currencies as whole units', () => {
+    for (const code of ['VND', 'IDR', 'CLP', 'ISK', 'PYG', 'UGX', 'RWF', 'XAF', 'XOF', 'IQD']) {
+      expect(currencyFractionDigits(code), code).toBe(0);
+    }
+    expect(currencyFractionDigits('RUB')).toBe(2);
+    expect(parse('1500.5', 'IDR')).toBe('amount-decimals');
   });
 });

@@ -83,6 +83,7 @@ describe('parseAppData', () => {
   it('repairs missing or wrong-typed settings with defaults', () => {
     const parsed = parseAppData({ settings: { currency: 'euro', theme: 'purple', defaultMonthlyGoal: 'lots', onboardingCompleted: 'yes' } });
     expect(parsed!.data.settings).toEqual({
+      name: '',
       currency: 'EUR',
       defaultMonthlyGoal: 0,
       theme: 'system',
@@ -103,5 +104,27 @@ describe('parseAppData', () => {
     expect(parseAppData(null)).toBeNull();
     expect(parseAppData('text')).toBeNull();
     expect(parseAppData([])).toBeNull();
+  });
+});
+
+describe('the name setting survives upgrades', () => {
+  it('data saved before names existed loads with an empty name and stays onboarded', () => {
+    const legacy = { schemaVersion: 1, settings: { currency: 'USD', defaultMonthlyGoal: 300000, theme: 'dark', onboardingCompleted: true, language: 'ru' }, entries: [], goals: [] };
+    const parsed = parseAppData(legacy)!;
+    expect(parsed.data.settings).toEqual({ name: '', currency: 'USD', defaultMonthlyGoal: 300000, theme: 'dark', onboardingCompleted: true, language: 'ru' });
+  });
+
+  it('keeps a saved name, trims it, and drops an unusable one', () => {
+    expect(parseAppData({ settings: { name: '  Алекс ' } })!.data.settings.name).toBe('Алекс');
+    expect(parseAppData({ settings: { name: 'x'.repeat(200) } })!.data.settings.name).toBe('');
+    expect(parseAppData({ settings: { name: 42 } })!.data.settings.name).toBe('');
+  });
+
+  it('stores language, name, currency and goal together and reads them back', () => {
+    const storage = createMemoryStorage();
+    const persistence = createLocalPersistence(storage);
+    persistence.save({ ...dataWith([], { name: 'Алекс', language: 'ar', currency: 'RUB', defaultMonthlyGoal: 20000000 }) });
+    const loaded = persistence.load();
+    expect(loaded.status === 'ok' && loaded.data.settings).toMatchObject({ name: 'Алекс', language: 'ar', currency: 'RUB', defaultMonthlyGoal: 20000000, onboardingCompleted: true });
   });
 });

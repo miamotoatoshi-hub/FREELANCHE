@@ -37,7 +37,8 @@ function dateFormat(locale: string, options: Intl.DateTimeFormatOptions): Intl.D
   const key = `d|${locale}|${JSON.stringify(options)}`;
   let format = cache.get(key) as Intl.DateTimeFormat | undefined;
   if (!format) {
-    format = new Intl.DateTimeFormat(locale, options);
+    // The app's dates are Gregorian calendar days; never let a locale (ar-SA, th-TH…) re-label them.
+    format = new Intl.DateTimeFormat(locale, { calendar: 'gregory', ...options });
     cache.set(key, format);
   }
   return format;
@@ -80,6 +81,17 @@ export function formatInteger(value: number, locale: string): string {
 
 export function decimalSeparator(locale: string): string {
   return numberFormat(locale, { minimumFractionDigits: 1 }).formatToParts(1.1).find((part) => part.type === 'decimal')?.value ?? '.';
+}
+
+/** The thousands separator ("," / "." / non-breaking space / "٬"), as written in this locale. */
+export function groupSeparator(locale: string): string {
+  return numberFormat(locale, { useGrouping: true }).formatToParts(1234567).find((part) => part.type === 'group')?.value ?? ',';
+}
+
+/** Whole numbers in the locale's own digits and grouping (۱٬۲۳۴, १२,३४,५६७, ১,২৩৪ …). Accepts digit strings of any length. */
+export function formatDigits(digits: string, locale: string): string {
+  if (!/^\d+$/.test(digits)) return '';
+  return numberFormat(locale, { maximumFractionDigits: 0 }).format(BigInt(digits));
 }
 
 /** A Date at local noon — never near a DST or midnight boundary — used only for formatting. */

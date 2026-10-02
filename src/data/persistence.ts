@@ -14,6 +14,8 @@ export const STORAGE_KEY = 'freelanche:data';
 export const BACKUP_KEY = 'freelanche:data:unreadable-backup';
 /** Tiny mirror of the theme so it can be applied before the app loads (no flash). */
 export const THEME_KEY = 'freelanche:theme';
+/** Mirror of the interface language, so `lang` and `dir` are right before the first paint (Arabic/Urdu users never see a flash of left-to-right). */
+export const LANG_KEY = 'freelanche:lang';
 const KEY_PREFIX = 'freelanche:';
 
 export interface KeyValueStorage {

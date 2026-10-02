@@ -21,6 +21,7 @@ body {
   font-size: 1rem;
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
 }
@@ -347,4 +348,58 @@ svg {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ── scripts & text direction ─────────────────────────────────────────────
+ * Each script gets a system font stack that has real glyphs for it (no
+ * downloaded fonts: the app makes no network requests). Latin digits still
+ * come from the UI font because it is listed first.
+ * Direction itself comes from <html dir>, set from the interface language. */
+
+:lang(zh) {
+  font-family: var(--font-latin), 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC',
+    'Noto Sans CJK SC', 'Source Han Sans SC', 'WenQuanYi Micro Hei', sans-serif;
+}
+
+:lang(ja) {
+  font-family: var(--font-latin), 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Yu Gothic', 'Meiryo', 'Noto Sans JP',
+    'Noto Sans CJK JP', 'Source Han Sans JP', sans-serif;
+}
+
+:lang(hi) {
+  font-family: var(--font-latin), 'Kohinoor Devanagari', 'Devanagari Sangam MN', 'Nirmala UI', 'Mangal', 'Noto Sans Devanagari',
+    'Lohit Devanagari', sans-serif;
+}
+
+:lang(bn) {
+  font-family: var(--font-latin), 'Kohinoor Bangla', 'Bangla Sangam MN', 'Nirmala UI', 'Vrinda', 'Noto Sans Bengali', 'Lohit Bengali',
+    sans-serif;
+}
+
+:lang(ar) {
+  font-family: var(--font-latin), 'Geeza Pro', 'Segoe UI', 'Tahoma', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Arial', sans-serif;
+}
+
+:lang(ur) {
+  font-family: var(--font-latin), 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Geeza Pro', 'Segoe UI', 'Tahoma', 'Noto Naskh Arabic',
+    'Noto Sans Arabic', sans-serif;
+}
+
+/* Tall scripts (stacked marks, Nastaliq) need more line height than the Latin-tuned headings use. */
+:is(:lang(hi), :lang(bn), :lang(ar), :lang(ur)) {
+  line-height: 1.55;
+}
+
+:is(:lang(hi), :lang(bn), :lang(ar), :lang(ur)) :is(h1, h2, h3, .title, .onboarding__title, .empty__title, .stat__text, .hero__status, .sheet__title, .dialog__title, .month__name, .stat__label, .btn, .chip) {
+  line-height: 1.5;
+}
+
+:lang(ur) {
+  line-height: 1.75;
+}
+
+/* Letter-spacing and capitals break joined or case-less scripts (Arabic letters must touch). */
+:is(:lang(ar), :lang(ur), :lang(hi), :lang(bn), :lang(zh), :lang(ja)) :not(.amount, .amount-field__row, .amount-field__input) {
+  letter-spacing: normal !important;
+  text-transform: none !important;
 }

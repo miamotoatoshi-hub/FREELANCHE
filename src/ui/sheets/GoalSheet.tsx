@@ -39,7 +39,7 @@ function GoalForm({ ym, scope }: Pick<GoalSheetProps, 'ym' | 'scope'>) {
   const defaultGoal = useAppSelector((s) => s.data.settings.defaultMonthlyGoal);
   const current = resolveMonthlyGoal(goals, ym, defaultGoal).amount;
 
-  const [text, setText] = useState(() => (current > 0 ? amountToInput(current, currency, fmt.decimalMark) : ''));
+  const [text, setText] = useState(() => (current > 0 ? amountToInput(current, currency, fmt.rawMark) : ''));
   const [error, setError] = useState<ErrorCode | null>(null);
 
   const save = (amount: number) => {
@@ -87,7 +87,7 @@ function GoalForm({ ym, scope }: Pick<GoalSheetProps, 'ym' | 'scope'>) {
             type="button"
             className="chip"
             onClick={() => {
-              setText(amountToInput(value, currency, fmt.decimalMark));
+              setText(amountToInput(value, currency, fmt.rawMark));
               setError(null);
             }}
           >

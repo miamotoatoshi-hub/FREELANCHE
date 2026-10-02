@@ -64,8 +64,8 @@
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 
   /* Type */
-  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', Roboto, 'Helvetica Neue',
-    'Noto Sans', Arial, sans-serif;
+  --font-latin: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', Roboto, 'Helvetica Neue';
+  --font: var(--font-latin), 'Noto Sans', Arial, sans-serif;
 
   /* Layout */
   --column: 480px;

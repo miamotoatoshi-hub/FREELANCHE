@@ -39,6 +39,8 @@ export interface MonthlyGoal {
 export type ThemePreference = 'light' | 'dark' | 'system';
 
 export interface UserSettings {
+  /** What the app calls the user. A nickname is fine; empty means "not set". */
+  name: string;
   currency: string;
   /** Base goal, used for months that have no earlier goal to inherit from. 0 = no goal. */
   defaultMonthlyGoal: number;
@@ -74,8 +76,10 @@ export type ErrorCode =
   | 'amount-decimals'
   | 'date-invalid'
   | 'note-too-long'
+  | 'name-too-long'
   | 'goal-invalid'
   | 'currency-invalid'
+  | 'currency-required'
   | 'not-found'
   | 'save-failed';
 

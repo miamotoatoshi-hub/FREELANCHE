@@ -10,7 +10,6 @@ import { HomeScreen } from './ui/screens/HomeScreen';
 import { InsightsScreen } from './ui/screens/InsightsScreen';
 import { OnboardingScreen } from './ui/screens/OnboardingScreen';
 import { SettingsScreen } from './ui/screens/SettingsScreen';
-import { SplashScreen } from './ui/screens/SplashScreen';
 import { StorageErrorScreen } from './ui/screens/StorageErrorScreen';
 import { UiProvider } from './ui/UiProvider';
 
@@ -24,8 +23,9 @@ const TITLES: Record<Route, MessageKey> = {
 export function App() {
   const status = useAppSelector((s) => s.status);
   const onboarded = useAppSelector((s) => s.data.settings.onboardingCompleted);
-  const [splashDone, setSplashDone] = useState(false);
-  const finishSplash = useCallback(() => setSplashDone(true), []);
+  // True only for the session in which onboarding was just completed (drives the one-time welcome).
+  const [justOnboarded, setJustOnboarded] = useState(false);
+  const finishOnboarding = useCallback(() => setJustOnboarded(true), []);
 
   useTheme();
   useTodaySync();
@@ -34,11 +34,13 @@ export function App() {
   if (status === 'error') return <StorageErrorScreen />;
   if (!onboarded) {
     return (
-      <div className="app app--flow">{splashDone ? <OnboardingScreen /> : <SplashScreen onDone={finishSplash} />}</div>
+      <div className="app app--flow">
+        <OnboardingScreen onFinished={finishOnboarding} />
+      </div>
     );
   }
   return (
-    <UiProvider>
+    <UiProvider welcome={justOnboarded}>
       <Shell />
     </UiProvider>
   );

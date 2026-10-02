@@ -9,7 +9,7 @@ import {
   type UserSettings,
   type YearMonth,
 } from './types';
-import { isValidCurrencyCode, validateAmount, validateIncomeFields } from './validation';
+import { isValidCurrencyCode, normalizeName, validateAmount, validateIncomeFields } from './validation';
 
 /**
  * Every change to the user's data goes through one of these pure functions:
@@ -25,6 +25,7 @@ export interface UseCaseDeps {
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
+  name: '',
   currency: 'EUR',
   defaultMonthlyGoal: 0,
   theme: 'system',
@@ -136,6 +137,14 @@ export function changeCurrency(data: AppData, currency: string): Result<AppData>
     settings: { ...data.settings, currency },
     entries: data.entries.map((entry) => (entry.currency === currency ? entry : { ...entry, currency })),
   });
+}
+
+/** Sets the name the app greets the user with. Empty clears it. */
+export function setName(data: AppData, name: string): Result<AppData> {
+  const cleaned = normalizeName(name);
+  if (!cleaned.ok) return fail(cleaned.error);
+  if (cleaned.value === data.settings.name) return ok(data);
+  return ok({ ...data, settings: { ...data.settings, name: cleaned.value } });
 }
 
 export function updateSettings(data: AppData, patch: Partial<UserSettings>): AppData {

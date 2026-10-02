@@ -13,7 +13,9 @@ export const MAX_AMOUNT_MAJOR = 100_000_000;
 export const MAX_AMOUNT = MAX_AMOUNT_MAJOR * STORAGE_SCALE;
 
 /** Currencies that have no fractional unit in everyday use. */
-const ZERO_DECIMAL_CURRENCIES = new Set(['JPY', 'KRW']);
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  'JPY', 'KRW', 'VND', 'IDR', 'CLP', 'ISK', 'PYG', 'UGX', 'RWF', 'XAF', 'XOF', 'IQD',
+]);
 
 /** How many decimals a person can meaningfully type for a currency. */
 export const currencyFractionDigits = (currency: string): 0 | 2 =>
@@ -34,6 +36,26 @@ export type AmountParse = { ok: true; amount: number } | { ok: false; error: Amo
 
 const bad = (error: AmountParseError): AmountParse => ({ ok: false, error });
 
+/** First code point of each non-Latin decimal digit set: Arabic-Indic, Persian/Urdu, Devanagari, Bengali, full-width. */
+const DIGIT_SET_STARTS = [0x0660, 0x06f0, 0x0966, 0x09e6, 0xff10];
+
+/**
+ * Lets people type in their own numerals: ٢٥٠٫٥ / ۲۵۰٫۵ / २५०.५ / ২৫০.৫ / ２５０．５ all become 250.5.
+ * Also maps Arabic and full-width separators to their ASCII equivalents.
+ */
+export function normalizeNumerals(text: string): string {
+  let out = '';
+  for (const char of text) {
+    const code = char.codePointAt(0)!;
+    const start = DIGIT_SET_STARTS.find((first) => code >= first && code < first + 10);
+    if (start !== undefined) out += String(code - start);
+    else if (char === '\u066b' || char === '\uff0e') out += '.';
+    else if (char === '\u066c' || char === '\u060c' || char === '\uff0c') out += ',';
+    else out += char;
+  }
+  return out;
+}
+
 /** "1.234" / "1,234,567": first group 1–3 digits, every other group exactly 3, one kind of mark. */
 function isValidGrouping(value: string): boolean {
   return /^\d{1,3}([.,]\d{3})+$/.test(value) && new Set(value.match(/[.,]/g)).size === 1;
@@ -51,7 +73,7 @@ function isValidGrouping(value: string): boolean {
  * that need "greater than zero" check afterwards.
  */
 export function parseAmountInput(text: string, currency: string): AmountParse {
-  const cleaned = text.replace(/[\s\u00a0\u202f']/g, '');
+  const cleaned = normalizeNumerals(text).replace(/[\s\u00a0\u202f']/g, '');
   if (cleaned === '') return bad('amount-empty');
   if (!/^[\d.,]+$/.test(cleaned) || !/\d/.test(cleaned)) return bad('amount-invalid');
 
@@ -103,7 +125,7 @@ export function parseAmountInput(text: string, currency: string): AmountParse {
  * contains thousands marks; pasted text is normalised with `parseAmountInput`.
  */
 export function sanitizeAmountInput(text: string, currency: string): string {
-  const stripped = text.replace(/[^\d.,]/g, '');
+  const stripped = normalizeNumerals(text).replace(/[^\d.,]/g, '');
   const markIndex = stripped.search(/[.,]/);
   let out = stripped;
   if (currencyFractionDigits(currency) === 0) {

@@ -1,12 +1,8 @@
 import type { MessageKey } from './en';
 
-/**
- * Russian strings. The type forces every English key to be translated;
- * extra plural forms (`few`, `many`) are allowed on top.
- */
+/** Русский — четыре формы множественного числа: one, few, many, other. */
 export const ru: Record<MessageKey, string> & Record<string, string> = {
   'app.name': 'Freelanche',
-  'app.tagline': 'Доход фрилансера — просто и наглядно.',
 
   'common.cancel': 'Отмена',
   'common.delete': 'Удалить',
@@ -17,6 +13,7 @@ export const ru: Record<MessageKey, string> & Record<string, string> = {
   'common.edit': 'Изменить',
   'common.retry': 'Повторить',
   'common.done': 'Готово',
+  'common.clear': 'Очистить',
 
   'nav.label': 'Основная навигация',
   'nav.home': 'Главная',
@@ -30,28 +27,46 @@ export const ru: Record<MessageKey, string> & Record<string, string> = {
   'month.selector': 'Выбранный месяц',
 
   'onboarding.step': 'Шаг {current} из {total}',
-  'onboarding.welcome.title': 'Следите за доходом от фриланса.',
-  'onboarding.welcome.subtitle':
-    'Смотрите, сколько вы заработали, как близко цель и сколько нужно заработать дальше.',
-  'onboarding.welcome.cta': 'Начать',
-  'onboarding.goal.title': 'Какая у вас цель на месяц?',
+  'onboarding.language.title': 'Какой язык вы хотите использовать в приложении?',
+  'onboarding.language.hint': 'Его можно изменить позже в настройках.',
+  'onboarding.name.title': 'Как к вам обращаться?',
+  'onboarding.name.hint': 'Можно использовать псевдоним. Он хранится только на этом устройстве.',
+  'onboarding.name.placeholder': 'например, Алекс',
+  'onboarding.name.skip': 'Пропустить',
+  'onboarding.currency.title': 'Какую валюту вы хотите использовать?',
+  'onboarding.currency.hint': 'Выберите валюту, в которой вы зарабатываете. Если сменить её позже, ничего не конвертируется.',
+  'onboarding.currency.suggested': 'Предложено для вашего устройства',
+  'onboarding.goal.title': 'Какова ваша месячная цель по доходу?',
   'onboarding.goal.hint': 'Её можно изменить в любой момент.',
   'onboarding.goal.skip': 'Задам позже',
-  'onboarding.currency.title': 'Выберите валюту',
-  'onboarding.currency.hint': 'Предложена по настройкам устройства. Если вы смените её позже, ничего не конвертируется.',
-  'onboarding.done.title': 'Всё готово.',
-  'onboarding.done.subtitle': 'Сделаем этот месяц результативным.',
-  'onboarding.done.cta': 'Начать учёт',
+  'onboarding.goal.cta': 'Начать учёт',
+
+  'name.label': 'Ваше имя или псевдоним',
+
+  'greeting.welcome': 'Добро пожаловать, {name}!',
+  'greeting.welcome.anon': 'Добро пожаловать!',
+  'greeting.dashboard': 'Ваша панель доходов, {name}',
+  'greeting.dashboard.anon': 'Ваша панель доходов',
+  'greeting.cheer': 'Достигнем вашей цели по доходу, {name}!',
+  'greeting.cheer.anon': 'Достигнем вашей цели по доходу!',
 
   'amount.label': 'Сумма',
   'goal.amountLabel': 'Сумма цели на месяц',
 
-  'currency.more': 'Другие валюты',
-  'currency.fewer': 'Скрыть другие валюты',
+  'language.list': 'Языки',
+
   'currency.list': 'Валюты',
+  'currency.search': 'Поиск валюты',
+  'currency.search.placeholder': 'Название, код или символ',
+  'currency.popular': 'Популярные',
+  'currency.all': 'Все валюты',
+  'currency.empty': 'Нет валюты, подходящей под «{query}».',
+  'currency.results.one': 'Найдена {count} валюта',
+  'currency.results.few': 'Найдено {count} валюты',
+  'currency.results.many': 'Найдено {count} валют',
+  'currency.results.other': 'Найдено {count} валюты',
   'currency.change.title': 'Сменить валюту на {currency}?',
-  'currency.change.text':
-    'Ваши суммы останутся прежними числами и будут показаны в {currency}. Конвертации не будет.',
+  'currency.change.text': 'Ваши суммы останутся прежними числами и будут показаны в {currency}. Конвертации не будет.',
   'currency.change.confirm': 'Сменить валюту',
 
   'home.earnedThisMonth': 'Заработано в этом месяце',
@@ -130,6 +145,8 @@ export const ru: Record<MessageKey, string> & Record<string, string> = {
   'error.amount-decimals-none': 'В этой валюте нет дробной части.',
   'error.date-invalid': 'Выберите корректную дату.',
   'error.note-too-long': 'Заметка должна быть короче {max} символов.',
+  'error.name-too-long': 'Имя должно быть короче {max} символов.',
+  'error.currency-required': 'Выберите валюту, чтобы продолжить.',
   'error.goal-invalid': 'Введите корректную цель.',
   'error.currency-invalid': 'Выберите корректную валюту.',
   'error.not-found': 'Этой записи больше нет.',
@@ -179,10 +196,13 @@ export const ru: Record<MessageKey, string> & Record<string, string> = {
   'insights.compare.none': 'Нет данных за прошлый месяц',
 
   'settings.title': 'Настройки',
+  'settings.section.profile': 'Профиль',
   'settings.section.finance': 'Финансы',
   'settings.section.appearance': 'Оформление',
   'settings.section.data': 'Данные',
   'settings.section.about': 'О приложении',
+  'settings.name': 'Имя',
+  'settings.name.none': 'Не задано',
   'settings.currency': 'Валюта',
   'settings.goal': 'Цель на месяц',
   'settings.goal.hint': 'Действует с этого месяца. Прошлые месяцы сохраняют свои цели.',
@@ -204,6 +224,10 @@ export const ru: Record<MessageKey, string> & Record<string, string> = {
   'settings.privacy': 'Конфиденциальность',
   'settings.terms': 'Условия',
   'settings.saved': 'Сохранено',
+
+  'nameSheet.title': 'Ваше имя',
+  'nameSheet.hint': 'Используется, чтобы приветствовать вас в приложении. Подойдёт и псевдоним.',
+  'nameSheet.save': 'Сохранить имя',
 
   'deleteAll.title': 'Удалить все данные?',
   'deleteAll.text': 'История доходов и настройки будут удалены безвозвратно.',
@@ -239,20 +263,16 @@ export const ru: Record<MessageKey, string> & Record<string, string> = {
 
   'privacy.title': 'Конфиденциальность',
   'privacy.p1': 'Ваши доходы хранятся только на этом устройстве. Нет аккаунтов, серверов и аналитики.',
-  'privacy.p2':
-    'Ничего из введённого не отправляется наружу. Приложение не запрашивает доступ к контактам, геолокации, камере и микрофону.',
+  'privacy.p2': 'Ничего из введённого не отправляется наружу. Приложение не запрашивает доступ к контактам, геолокации, камере и микрофону.',
   'privacy.p3': 'В настройках можно в любой момент выгрузить копию данных или стереть всё.',
   'terms.title': 'Условия',
   'terms.p1': 'Freelanche — простой инструмент для учёта заработанных денег. Он предоставляется «как есть».',
-  'terms.p2':
-    'Приложение не даёт финансовых, бухгалтерских или налоговых советов, а его цифры полны настолько, насколько полны ваши записи.',
+  'terms.p2': 'Приложение не даёт финансовых, бухгалтерских или налоговых советов, а его цифры полны настолько, насколько полны ваши записи.',
   'terms.p3': 'Делайте свои резервные копии: экспортируйте данные в настройках когда угодно.',
 
-  'storage.unavailable':
-    'Браузер блокирует хранилище, поэтому доходы не сохранятся после закрытия приложения.',
+  'storage.unavailable': 'Браузер блокирует хранилище, поэтому доходы не сохранятся после закрытия приложения.',
   'storageError.title': 'Не удалось прочитать сохранённые данные',
-  'storageError.text':
-    'Данные всё ещё на этом устройстве. Повторите попытку или начните заново — копия нечитаемых данных сохранится.',
+  'storageError.text': 'Данные всё ещё на этом устройстве. Повторите попытку или начните заново — копия нечитаемых данных сохранится.',
   'storageError.fresh': 'Начать заново',
 
   'toast.label': 'Уведомления',

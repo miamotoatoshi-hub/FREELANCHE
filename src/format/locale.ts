@@ -1,39 +1,48 @@
-export const SUPPORTED_LANGUAGES = ['en', 'ru'] as const;
-export type Language = (typeof SUPPORTED_LANGUAGES)[number];
+import { DEFAULT_LANGUAGE, LANGUAGES, isLanguage, languageInfo, type Language } from '../i18n/languages';
 
-export const LANGUAGE_LABELS: Record<Language, string> = { en: 'English', ru: 'Русский' };
+export { isLanguage, type Language };
 
-export function isLanguage(value: unknown): value is Language {
-  return typeof value === 'string' && (SUPPORTED_LANGUAGES as readonly string[]).includes(value);
+export const SUPPORTED_LANGUAGES: readonly Language[] = LANGUAGES.map((language) => language.code);
+
+/**
+ * The app language a device locale tag points to, if we have one. Chinese is
+ * only offered in Simplified, so Traditional (zh-TW, zh-HK, zh-Hant) doesn't match.
+ */
+function languageOfTag(tag: string): Language | null {
+  try {
+    const locale = new Intl.Locale(tag);
+    if (locale.language === 'zh') return locale.maximize().script === 'Hant' ? null : 'zh';
+    return isLanguage(locale.language) ? locale.language : null;
+  } catch {
+    return null; // malformed tag
+  }
 }
 
 /** The first device language we support, else English. */
 export function detectLanguage(deviceLocales: readonly string[]): Language {
   for (const tag of deviceLocales) {
-    const base = tag.toLowerCase().split('-')[0];
-    if (isLanguage(base)) return base;
+    const language = languageOfTag(tag);
+    if (language) return language;
   }
-  return 'en';
+  return DEFAULT_LANGUAGE;
 }
-
-const FALLBACK_LOCALE: Record<Language, string> = { en: 'en-US', ru: 'ru-RU' };
 
 /**
  * The locale used for number and date formatting. If the device locale speaks
- * the chosen interface language (e.g. en-GB for English) its regional habits are
- * kept; otherwise a neutral default for that language is used.
+ * the chosen interface language (e.g. en-GB for English, es-MX for Spanish) its
+ * regional habits are kept; otherwise a sensible regional default for that language is used.
  */
 export function resolveLocale(language: string, deviceLocales: readonly string[]): string {
-  const lang: Language = isLanguage(language) ? language : 'en';
-  const match = deviceLocales.find((tag) => tag.toLowerCase().split('-')[0] === lang);
+  const lang: Language = isLanguage(language) ? language : DEFAULT_LANGUAGE;
+  const match = deviceLocales.find((tag) => languageOfTag(tag) === lang);
   if (match) {
     try {
-      return Intl.getCanonicalLocales(match)[0] ?? FALLBACK_LOCALE[lang];
+      return Intl.getCanonicalLocales(match)[0] ?? languageInfo(lang).defaultLocale;
     } catch {
       /* fall through */
     }
   }
-  return FALLBACK_LOCALE[lang];
+  return languageInfo(lang).defaultLocale;
 }
 
 export function deviceLocales(): readonly string[] {
@@ -41,17 +50,24 @@ export function deviceLocales(): readonly string[] {
   return navigator.languages?.length ? navigator.languages : navigator.language ? [navigator.language] : [];
 }
 
-/** First day of the week for a locale: 0 = Sunday, 1 = Monday. */
-export function firstDayOfWeek(locale: string): 0 | 1 {
+/** 0 = Sunday … 6 = Saturday. */
+export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+const SATURDAY_FIRST = ['AE', 'AF', 'BH', 'DJ', 'DZ', 'EG', 'IQ', 'IR', 'JO', 'KW', 'LY', 'OM', 'QA', 'SD', 'SY'];
+const SUNDAY_FIRST = ['US', 'CA', 'MX', 'BR', 'JP', 'IN', 'AU', 'IL', 'KR', 'ZA', 'SA', 'PK', 'BD', 'ID', 'PH', 'TW', 'HK'];
+
+/** First day of the week for a locale (Saturday for most of the Arab world, Sunday in the Americas, Monday in Europe…). */
+export function firstDayOfWeek(locale: string): WeekDay {
   try {
     const loc = new Intl.Locale(locale) as Intl.Locale & {
       getWeekInfo?: () => { firstDay: number };
       weekInfo?: { firstDay: number };
     };
     const info = loc.getWeekInfo?.() ?? loc.weekInfo;
-    if (info) return info.firstDay === 7 ? 0 : 1;
-    const region = loc.maximize().region;
-    return region && ['US', 'CA', 'JP', 'BR', 'MX', 'IN', 'AU', 'IL', 'KR', 'ZA'].includes(region) ? 0 : 1;
+    if (info) return (info.firstDay % 7) as WeekDay; // Intl numbers Monday 1 … Sunday 7
+    const region = loc.maximize().region ?? '';
+    if (SATURDAY_FIRST.includes(region)) return 6;
+    return SUNDAY_FIRST.includes(region) ? 0 : 1;
   } catch {
     return 1;
   }

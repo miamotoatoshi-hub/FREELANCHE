@@ -55,7 +55,7 @@ function IncomeForm({ entryId }: { entryId?: string }) {
   const selectedMonth = useAppSelector((s) => s.selectedMonth);
   const today = useAppSelector((s) => s.today);
 
-  const [amount, setAmount] = useState(() => (existing ? amountToInput(existing.amount, currency, fmt.decimalMark) : ''));
+  const [amount, setAmount] = useState(() => (existing ? amountToInput(existing.amount, currency, fmt.rawMark) : ''));
   const [date, setDate] = useState(() => existing?.date ?? defaultDateForMonth(selectedMonth, today));
   const [note, setNote] = useState(() => existing?.note ?? '');
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -71,7 +71,7 @@ function IncomeForm({ entryId }: { entryId?: string }) {
   const addQuick = (quick: number) => {
     const parsed = parseAmountInput(amount, currency);
     const base = parsed.ok ? parsed.amount : 0;
-    setAmount(amountToInput(Math.min(base + quick, MAX_AMOUNT), currency, fmt.decimalMark));
+    setAmount(amountToInput(Math.min(base + quick, MAX_AMOUNT), currency, fmt.rawMark));
     clear('amount');
   };
 

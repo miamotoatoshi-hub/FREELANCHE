@@ -8,6 +8,7 @@ import {
   importEntries,
   setDefaultGoal,
   setMonthGoal,
+  setName,
   updateIncome,
   updateSettings,
   type ImportRow,
@@ -137,6 +138,10 @@ export class AppStore {
 
   changeCurrency(currency: string): Result<void> {
     return this.apply(changeCurrency(this.snapshot.data, currency));
+  }
+
+  setName(name: string): Result<void> {
+    return this.apply(setName(this.snapshot.data, name));
   }
 
   setTheme(theme: ThemePreference): Result<void> {

@@ -4,7 +4,7 @@ import { monthOf } from '../../domain/dates';
 import { resolveMonthlyGoal } from '../../domain/goals';
 import { importEntries, type ImportRow } from '../../domain/usecases';
 import type { ThemePreference } from '../../domain/types';
-import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, type Language } from '../../format/locale';
+import { languageInfo } from '../../i18n/languages';
 import { useI18n } from '../../i18n/I18nProvider';
 import { createId } from '../../lib/id';
 import { useAppSelector, useAppStore } from '../../state/context';
@@ -15,6 +15,8 @@ import { SegmentedControl } from '../components/SegmentedControl';
 import { Sheet } from '../components/Sheet';
 import { useErrorMessage } from '../hooks/useErrorMessage';
 import { InfoSheet } from '../sheets/InfoSheet';
+import { LanguageSheet } from '../sheets/LanguageSheet';
+import { NameSheet } from '../sheets/NameSheet';
 import { useUi } from '../UiContext';
 
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
@@ -27,10 +29,11 @@ interface ImportPreview {
   otherCurrency: number;
 }
 
-type Overlay = 'currency' | 'privacy' | 'terms' | 'delete-all' | null;
+type Overlay = 'currency' | 'language' | 'name' | 'privacy' | 'terms' | 'delete-all' | null;
 
 export function SettingsScreen() {
   const { t, tn, fmt, currency, language } = useI18n();
+  const nativeLanguage = languageInfo(language);
   const ui = useUi();
   const store = useAppStore();
   const errorMessage = useErrorMessage();
@@ -151,13 +154,27 @@ export function SettingsScreen() {
     { value: 'dark', label: t('settings.theme.dark') },
     { value: 'system', label: t('settings.theme.system') },
   ];
-  const languageOptions = SUPPORTED_LANGUAGES.map((code) => ({ value: code, label: LANGUAGE_LABELS[code] }));
 
   return (
     <div className="screen">
       <header className="topbar">
         <h1 className="title">{t('settings.title')}</h1>
       </header>
+
+      <Group title={t('settings.section.profile')}>
+        <Row
+          label={t('settings.name')}
+          value={settings.name || t('settings.name.none')}
+          valueAttrs={settings.name ? { dir: 'auto' } : undefined}
+          onClick={() => setOverlay('name')}
+        />
+        <Row
+          label={t('settings.language')}
+          value={nativeLanguage.nativeName}
+          valueAttrs={{ lang: nativeLanguage.code, dir: nativeLanguage.dir }}
+          onClick={() => setOverlay('language')}
+        />
+      </Group>
 
       <Group title={t('settings.section.finance')}>
         <Row label={t('settings.currency')} value={`${currency}`} onClick={() => setOverlay('currency')} />
@@ -173,10 +190,6 @@ export function SettingsScreen() {
         <div className="setting">
           <span className="setting__label">{t('settings.theme')}</span>
           <SegmentedControl<ThemePreference> label={t('settings.theme')} value={settings.theme} options={themeOptions} onChange={(value) => void store.setTheme(value)} />
-        </div>
-        <div className="setting">
-          <span className="setting__label">{t('settings.language')}</span>
-          <SegmentedControl<Language> label={t('settings.language')} value={language} options={languageOptions} onChange={(value) => void store.setLanguage(value)} />
         </div>
       </Group>
 
@@ -198,9 +211,12 @@ export function SettingsScreen() {
 
       {overlay === 'currency' && (
         <Sheet title={t('settings.currency')} onClose={() => setOverlay(null)}>
-          <CurrencySelector value={currency} onSelect={chooseCurrency} />
+          <CurrencySelector value={currency} onSelect={chooseCurrency} contained headingLevel={3} />
         </Sheet>
       )}
+
+      {overlay === 'language' && <LanguageSheet onClose={() => setOverlay(null)} />}
+      {overlay === 'name' && <NameSheet onClose={() => setOverlay(null)} />}
 
       {pendingCurrency && (
         <ConfirmationDialog
@@ -264,13 +280,15 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 interface RowProps {
   label: string;
   value?: string;
+  /** `lang` / `dir` for the value, e.g. a language name written in its own script. */
+  valueAttrs?: { lang?: string; dir?: 'ltr' | 'rtl' | 'auto' };
   hint?: string;
   icon?: IconName;
   tone?: 'danger';
   onClick: () => void;
 }
 
-function Row({ label, value, hint, icon, tone, onClick }: RowProps) {
+function Row({ label, value, valueAttrs, hint, icon, tone, onClick }: RowProps) {
   return (
     <button type="button" className={`row${tone === 'danger' ? ' row--danger' : ''}`} onClick={onClick}>
       {icon && <Icon name={icon} size={22} className="row__icon" />}
@@ -278,7 +296,11 @@ function Row({ label, value, hint, icon, tone, onClick }: RowProps) {
         <span className="row__label">{label}</span>
         {hint && <span className="row__hint">{hint}</span>}
       </span>
-      {value && <span className="row__value">{value}</span>}
+      {value && (
+        <span className="row__value" {...valueAttrs}>
+          {value}
+        </span>
+      )}
       {!icon && <Icon name="chevronRight" size={18} className="row__chevron" />}
     </button>
   );

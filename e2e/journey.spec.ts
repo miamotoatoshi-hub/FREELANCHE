@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { addIncome, freezeClock, goTo, onboard, seed, stat, storedData } from './helpers';
+import { LANGUAGES, addIncome, dict, freezeClock, goTo, onboard, seed, stat, storedData } from './helpers';
 
 /**
  * The spec's QA checklist, run against the real production build in a real browser.
@@ -12,49 +12,6 @@ test.beforeEach(async ({ page }) => {
 
 const hero = (page: Page) => page.locator('.hero');
 const ring = (page: Page) => page.locator('.ring__center');
-
-test.describe('onboarding', () => {
-  test('saves goal and currency, lands on the dashboard, and never shows again', async ({ page }) => {
-    await onboard(page, { goal: '3000', currency: 'Euro' });
-
-    await expect(ring(page)).toContainText('€0');
-    await expect(hero(page)).toContainText('€3,000 left');
-    await expect(hero(page)).toContainText('Monthly goal: €3,000');
-
-    const data = await storedData(page);
-    expect(data.settings).toMatchObject({ currency: 'EUR', defaultMonthlyGoal: 300000, onboardingCompleted: true });
-
-    await page.reload();
-    await expect(page.getByRole('button', { name: 'Add income' })).toBeVisible();
-    await expect(page.getByText('Get started')).toHaveCount(0);
-  });
-
-  test('suggests a currency from the device locale and lets you change it', async ({ page }) => {
-    await page.goto('/');
-    await page.locator('.splash').click();
-    await page.getByRole('button', { name: 'Get started' }).click();
-    await page.getByRole('button', { name: 'Continue' }).click(); // skip typing a goal
-    await expect(page.getByRole('radio', { name: /US Dollar/ })).toBeChecked(); // en-US device
-    await page.getByText('Japanese Yen', { exact: true }).click();
-    await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('button', { name: 'Start tracking' }).click();
-    // Goal is optional: no goal yet, and the dashboard still works.
-    await expect(page.getByText('Set your monthly goal')).toBeVisible();
-    await expect(hero(page)).toContainText('¥0');
-  });
-
-  test('a goal is optional', async ({ page }) => {
-    await page.goto('/');
-    await page.locator('.splash').click();
-    await page.getByRole('button', { name: 'Get started' }).click();
-    await page.getByRole('button', { name: "I'll set it later" }).click();
-    await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('button', { name: 'Start tracking' }).click();
-    await expect(page.getByRole('button', { name: 'Set goal' })).toBeVisible();
-    await addIncome(page, '250');
-    await expect(hero(page)).toContainText('$250');
-  });
-});
 
 test.describe('dashboard maths', () => {
   test.beforeEach(async ({ page }) => {
@@ -140,11 +97,16 @@ test.describe('input validation', () => {
     expect((await storedData(page)).entries).toHaveLength(0);
   });
 
-  test('filters letters and minus signs while typing; accepts a comma as the decimal mark', async ({ page }) => {
+  test('filters letters and minus signs while typing, and groups digits as you go', async ({ page }) => {
     const sheet = page.getByRole('dialog');
     const amount = sheet.getByLabel('Amount');
-    await amount.pressSequentially('-12abc3,456');
-    await expect(amount).toHaveValue('123,45');
+    await amount.pressSequentially('-12abc3.456');
+    await expect(amount).toHaveValue('123.45'); // at most two decimals
+    await amount.fill('');
+    await amount.pressSequentially('1234567');
+    await expect(amount).toHaveValue('1,234,567'); // the locale's grouping appears live
+    await amount.fill('');
+    await amount.pressSequentially('123.45');
     await sheet.getByRole('button', { name: 'Add income' }).click();
     await expect(ring(page)).toContainText('€123.45');
     expect((await storedData(page)).entries[0].amount).toBe(12345);
@@ -424,10 +386,10 @@ test.describe('persistence and settings', () => {
 
     await page.getByRole('button', { name: /Delete all data/ }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete all' }).click();
-    await expect(page.getByRole('button', { name: 'Get started' })).toBeVisible();
+    const question = page.getByRole('heading', { name: 'What language would you like to use in the app?' });
+    await expect(question).toBeVisible();
     await page.reload();
-    await page.locator('.splash').click();
-    await expect(page.getByRole('button', { name: 'Get started' })).toBeVisible(); // nothing came back
+    await expect(question).toBeVisible(); // nothing came back
   });
 });
 
@@ -510,15 +472,16 @@ test.describe('dates and time zones', () => {
 });
 
 test.describe('language', () => {
-  test('switching to Russian translates the app and formats numbers the Russian way', async ({ page }) => {
-    await seed(page, { entries: [{ date: '2026-09-03', amount: 1500.5 }], goal: 3000 });
+  test('switching to Russian in Settings translates the app and formats numbers the Russian way', async ({ page }) => {
+    await seed(page, { entries: [{ date: '2026-09-03', amount: 1500.5 }], goal: 3000, name: 'Алекс' });
     await page.goto('/');
     await goTo(page, 'Settings');
-    await page.getByText('Русский', { exact: true }).click();
+    await page.getByRole('button', { name: /Language/ }).click();
+    await page.locator('label.language', { hasText: 'Русский' }).click();
     await expect(page.getByRole('heading', { name: 'Настройки' })).toBeVisible();
     await page.getByRole('link', { name: 'Главная' }).click();
     await expect(page.getByText('Заработано в этом месяце')).toBeVisible();
-    await expect(page.getByText('сентябрь 2026')).toBeVisible();
+    await expect(page.getByText('Сентябрь 2026')).toBeVisible();
     await expect(ring(page)).toContainText(/1\s500,50\s€/);
     await expect(page.getByRole('button', { name: 'Добавить доход' })).toBeVisible();
     await page.reload();
@@ -603,6 +566,28 @@ test.describe('offline', () => {
     await context.setOffline(false);
   });
 
+  test('every language is available offline: all 12 can be switched to with no network', async ({ page, context }) => {
+    test.setTimeout(90_000);
+    await onboard(page);
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+
+    await context.setOffline(true);
+    await page.reload();
+    let current = 'en';
+    for (const language of LANGUAGES) {
+      if (language.code === current) continue;
+      await goTo(page, 'Settings', current);
+      await page.getByRole('button', { name: new RegExp(`^${dict(current)['settings.language']}`) }).click();
+      await page.locator('label.language', { hasText: language.nativeName }).click();
+      await expect(page.locator('html')).toHaveAttribute('lang', new RegExp(`^${language.code}(-|$)`));
+      await expect(page.getByRole('navigation', { name: dict(language.code)['nav.label'] })).toBeVisible();
+      current = language.code;
+    }
+    await context.setOffline(false);
+  });
+
   test('the app never makes a network request to anyone else', async ({ page }) => {
     const external: string[] = [];
     page.on('request', (request) => {
@@ -644,7 +629,7 @@ test.describe('damaged data', () => {
     expect(await page.evaluate(() => window.localStorage.getItem('freelanche:data'))).toBe('{"entries": [oops');
     expect(await page.evaluate(() => window.localStorage.getItem('freelanche:data:unreadable-backup'))).toBe('{"entries": [oops');
     await page.getByRole('button', { name: 'Start fresh' }).click();
-    await expect(page.getByRole('button', { name: 'Get started' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'What language would you like to use in the app?' })).toBeVisible();
   });
 
   test('a few bad records are dropped without taking the app down', async ({ page }) => {

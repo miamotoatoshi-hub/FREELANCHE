@@ -18,6 +18,7 @@ export function HomeScreen() {
   const summary = useMonthSummary();
   const durable = useAppSelector((s) => s.durable);
   const hasAnyEntries = useAppSelector((s) => s.data.entries.length > 0);
+  const name = useAppSelector((s) => s.data.settings.name);
 
   const { progress, phase, entryCount } = summary;
   const showDetails = entryCount > 0 && phase !== 'future';
@@ -30,7 +31,9 @@ export function HomeScreen() {
           <Icon name="settings" />
         </a>
       </header>
-      <h1 className="sr-only">{t('nav.home')}</h1>
+      <h1 className="greeting">
+        {name ? t('greeting.dashboard', { name }) : t('greeting.dashboard.anon')}
+      </h1>
 
       {!durable && (
         <p className="notice" role="note">
@@ -39,7 +42,7 @@ export function HomeScreen() {
       )}
 
       <div className="month-view" key={monthKey(summary.ym)} data-state={summary.appState}>
-        <Hero summary={summary} hasAnyEntries={hasAnyEntries} />
+        <Hero summary={summary} hasAnyEntries={hasAnyEntries} name={name} />
 
         {!progress.hasGoal && (
           <GoalCard
@@ -92,7 +95,7 @@ function BestDayDate({ summary }: { summary: MonthSummary }) {
 }
 
 /** Earned this month + the goal ring. The one thing you should read in three seconds. */
-function Hero({ summary, hasAnyEntries }: { summary: MonthSummary; hasAnyEntries: boolean }) {
+function Hero({ summary, hasAnyEntries, name }: { summary: MonthSummary; hasAnyEntries: boolean; name: string }) {
   const { t, fmt } = useI18n();
   const ui = useUi();
   const { progress, phase, income, entryCount } = summary;
@@ -150,6 +153,9 @@ function Hero({ summary, hasAnyEntries }: { summary: MonthSummary; hasAnyEntries
         </p>
       )}
       {message ? <p className="hero__message">{message}</p> : null}
+      {summary.appState === 'Active' ? (
+        <p className="hero__message hero__cheer">{name ? t('greeting.cheer', { name }) : t('greeting.cheer.anon')}</p>
+      ) : null}
 
       <button type="button" className="goal-link" onClick={() => ui.openGoal(summary.ym, 'month')}>
         <span>{t('home.goalLine', { amount: fmt.money(progress.goal) })}</span>
