@@ -49,10 +49,12 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
   event.respondWith(
-    caches.match(request, { ignoreSearch: true }).then((hit) => {
+    // ignoreVary: a host that sends "Vary: Origin" (many do, for CORS) would otherwise make every <script crossorigin>
+    // and stylesheet request miss the cache in recent Chrome, because the precaching fetch carried no Origin header.
+    caches.match(request, { ignoreSearch: true, ignoreVary: true }).then((hit) => {
       if (hit) return hit;
       return fetch(request).catch(() =>
-        request.mode === 'navigate' ? caches.match('./') : Response.error(),
+        request.mode === 'navigate' ? caches.match('./', { ignoreVary: true }) : Response.error(),
       );
     }),
   );
