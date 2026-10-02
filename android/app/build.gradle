@@ -101,3 +101,6 @@ tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
         }
     }
 }
+
+// Show deprecation warnings from our own native code in the build log (they never fail the build).
+tasks.withType(JavaCompile).configureEach { options.compilerArgs << '-Xlint:deprecation' }
