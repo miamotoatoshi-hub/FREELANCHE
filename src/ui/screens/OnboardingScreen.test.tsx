@@ -1,16 +1,13 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ReactElement } from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { App } from '../../App';
 import { createLocalPersistence, createMemoryStorage, STORAGE_KEY, type KeyValueStorage } from '../../data/persistence';
-import { I18nProvider } from '../../i18n/I18nProvider';
 import { LANGUAGES } from '../../i18n/languages';
-import { loadLocale } from '../../i18n/registry';
-import { StoreProvider } from '../../state/context';
 import { AppStore } from '../../state/store';
+import { activePurchase, createFakePlay, renderApp, type FakePlay } from '../../test/renderApp';
 
 let storage: KeyValueStorage;
+let play: FakePlay;
 
 function boot(): AppStore {
   const store = new AppStore(createLocalPersistence(storage), {
@@ -21,16 +18,8 @@ function boot(): AppStore {
   return store;
 }
 
-async function mount(store: AppStore): Promise<ReactElement> {
-  await loadLocale(store.getSnapshot().data.settings.language);
-  return (
-    <StoreProvider store={store}>
-      <I18nProvider>
-        <App />
-      </I18nProvider>
-    </StoreProvider>
-  );
-}
+/** Mounts the app against the shared pretend Google Play, so a "restart" keeps the subscription. */
+const mount = (store: AppStore) => renderApp(store, play);
 
 /** Bidi isolates around inserted names are invisible; compare the visible words. */
 const visible = (text: string) => text.replace(/[\u2066-\u2069]/g, '');
@@ -39,12 +28,13 @@ const saved = () => JSON.parse(storage.getItem(STORAGE_KEY)!).settings;
 
 beforeEach(() => {
   storage = createMemoryStorage();
+  play = createFakePlay();
 });
 
 describe('onboarding', () => {
-  it('asks for language, then name, then currency, then the goal — in that order', async () => {
+  it('asks for language, then name, then the free trial, then currency, then the goal — in that order', async () => {
     const user = userEvent.setup();
-    render(await mount(boot()));
+    await mount(boot());
 
     // 1 — language comes first, with every language in its own script
     expect(screen.getByRole('heading', { name: 'What language would you like to use in the app?' })).toBeInTheDocument();
@@ -56,7 +46,17 @@ describe('onboarding', () => {
     await user.type(screen.getByLabelText('Your name or nickname'), 'Alex');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
-    // 3 — currency, before any goal is asked, and nothing is pre-selected
+    // 3 — the free trial is the account: nothing after it opens until a subscription is active
+    expect(screen.getByRole('heading', { name: 'Start your free trial' })).toBeInTheDocument();
+    expect(await screen.findByText('7 days free')).toBeInTheDocument();
+    expect(screen.getByText('then €2.99 per month')).toBeInTheDocument();
+    expect(screen.queryByText('Which currency would you like to use?')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Continue' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Start free trial' }));
+    expect(await screen.findByRole('heading', { name: "You're all set — your subscription is active." })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    // 4 — currency, before any goal is asked, and nothing is pre-selected
     expect(screen.getByRole('heading', { name: 'Which currency would you like to use?' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Monthly goal amount')).not.toBeInTheDocument();
     expect(screen.queryAllByRole('radio', { checked: true })).toHaveLength(0);
@@ -66,7 +66,7 @@ describe('onboarding', () => {
     await user.click(screen.getByRole('radio', { name: /Russian Ruble/ }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
-    // 4 — the goal field shows the chosen currency, and formats as you type
+    // 5 — the goal field shows the chosen currency, and formats as you type
     expect(screen.getByRole('heading', { name: 'What is your monthly income goal?' })).toBeInTheDocument();
     const goal = screen.getByLabelText('Monthly goal amount');
     expect(goal.closest('.amount-field')).toHaveTextContent('RUB');
@@ -84,7 +84,7 @@ describe('onboarding', () => {
 
   it('switches the whole interface the moment a language is picked, and remembers it', async () => {
     const user = userEvent.setup();
-    render(await mount(boot()));
+    await mount(boot());
     await user.click(screen.getByRole('radio', { name: /Español/ }));
     expect(await screen.findByRole('heading', { name: '¿Qué idioma quieres usar en la app?' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument();
@@ -95,7 +95,7 @@ describe('onboarding', () => {
 
   it('flips the document to right-to-left for Arabic and Urdu', async () => {
     const user = userEvent.setup();
-    render(await mount(boot()));
+    await mount(boot());
     await user.click(screen.getByRole('radio', { name: /العربية/ }));
     await waitFor(() => expect(document.documentElement.dir).toBe('rtl'));
     expect(screen.getByRole('heading', { name: 'ما اللغة التي تريد استخدامها في التطبيق؟' })).toBeInTheDocument();
@@ -108,7 +108,7 @@ describe('onboarding', () => {
 
   it('keeps what you typed when you go back, and lets you skip the name', async () => {
     const user = userEvent.setup();
-    render(await mount(boot()));
+    await mount(boot());
     await user.click(screen.getByRole('radio', { name: /Français/ }));
     await user.click(await screen.findByRole('button', { name: 'Continuer' }));
     await user.type(screen.getByLabelText('Votre nom ou pseudo'), 'Léa');
@@ -125,7 +125,7 @@ describe('onboarding', () => {
 
   it('rejects a name that is too long, with a friendly message', async () => {
     const user = userEvent.setup();
-    render(await mount(boot()));
+    await mount(boot());
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await user.type(screen.getByLabelText('Your name or nickname'), 'x'.repeat(50));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
@@ -133,23 +133,25 @@ describe('onboarding', () => {
     expect(screen.getByRole('heading', { name: 'What should we call you?' })).toBeInTheDocument();
   });
 
-  it('shows a first-launch progress indicator for all four steps', async () => {
+  it('shows a first-launch progress indicator for all five steps', async () => {
     const user = userEvent.setup();
-    render(await mount(boot()));
-    expect(screen.getByText('Step 1 of 4')).toBeInTheDocument();
+    await mount(boot());
+    expect(screen.getByText('Step 1 of 5')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(screen.getByText('Step 2 of 4')).toBeInTheDocument();
-    expect(within(screen.getByRole('list', { name: 'Step 2 of 4' })).getAllByRole('listitem')).toHaveLength(4);
+    expect(screen.getByText('Step 2 of 5')).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Step 2 of 5' })).getAllByRole('listitem')).toHaveLength(5);
   });
 
   it('does not ask again once completed, and a restart keeps language, name, currency and goal', async () => {
     const user = userEvent.setup();
     const first = boot();
-    const { unmount } = render(await mount(first));
+    const { unmount } = await mount(first);
     await user.click(screen.getByRole('radio', { name: /日本語/ }));
     await user.click(await screen.findByRole('button', { name: '続ける' }));
     await user.type(screen.getByLabelText('お名前またはニックネーム'), 'さくら');
     await user.click(screen.getByRole('button', { name: '続ける' }));
+    await user.click(await screen.findByRole('button', { name: '無料トライアルを始める' }));
+    await user.click(await screen.findByRole('button', { name: '続ける' }));
     await user.click(screen.getByRole('radio', { name: /日本円/ }));
     await user.click(screen.getByRole('button', { name: '続ける' }));
     await user.type(screen.getByLabelText('毎月の目標金額'), '300000');
@@ -159,7 +161,7 @@ describe('onboarding', () => {
 
     // "Restart": a brand-new store over the same storage.
     await act(async () => undefined);
-    render(await mount(boot()));
+    await mount(boot());
     expect(await screen.findByRole('heading', { level: 1, name: (name) => visible(name) === 'さくらさんの収入ダッシュボード' })).toBeInTheDocument();
     expect(screen.queryByText('アプリで使う言語を選んでください')).not.toBeInTheDocument();
     expect(screen.getByText(/毎月の目標：.*300,000/)).toBeInTheDocument();
@@ -167,6 +169,7 @@ describe('onboarding', () => {
   });
 
   it('leaves people who finished onboarding before names existed on the dashboard', async () => {
+    play.set({ purchases: [activePurchase()] });
     storage.setItem(
       STORAGE_KEY,
       JSON.stringify({
@@ -176,7 +179,7 @@ describe('onboarding', () => {
         goals: [],
       }),
     );
-    render(await mount(boot()));
+    await mount(boot());
     expect(await screen.findByRole('heading', { level: 1, name: 'Your income dashboard' })).toBeInTheDocument();
     expect(screen.queryByText('What should we call you?')).not.toBeInTheDocument();
   });

@@ -26,7 +26,7 @@ export default defineConfig({
     launchOptions: executablePath ? { executablePath } : {},
   },
   webServer: {
-    command: 'npm run build && npm run preview',
+    command: 'npm run build:mock && npm run preview',
     url: `http://127.0.0.1:${PORT}`,
     reuseExistingServer: true,
     timeout: 120_000,

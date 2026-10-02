@@ -4,6 +4,7 @@ import type { ErrorCode } from '../../domain/types';
 import { MAX_NAME_LENGTH } from '../../domain/validation';
 import { exampleGoal, goalPresets, suggestCurrency } from '../../format/currencies';
 import { deviceLocales } from '../../format/locale';
+import { useEntitlement } from '../../billing/context';
 import { useI18n } from '../../i18n/I18nProvider';
 import { useAppStore } from '../../state/context';
 import { AmountField } from '../components/AmountField';
@@ -12,21 +13,27 @@ import { CurrencySelector } from '../components/CurrencySelector';
 import { Icon } from '../components/Icon';
 import { LanguageSelector } from '../components/LanguageSelector';
 import { LogoMark } from '../components/LogoMark';
+import { paywallTitleKey, SubscribePanel } from '../components/SubscribePanel';
 import { useChangeLanguage } from '../hooks/useChangeLanguage';
 import { useErrorMessage } from '../hooks/useErrorMessage';
 
-const STEPS = 4;
-type Step = 0 | 1 | 2 | 3;
+const STEPS = 5;
+type Step = 0 | 1 | 2 | 3 | 4;
 
 /**
- * First launch, in this order: language → name → currency → income goal.
- * The language applies the moment it is picked. The currency is asked *before*
- * the goal and is never assumed — the goal field then shows the chosen currency.
- * Everything typed survives going back.
+ * First launch, in this order: language → name → free trial → currency → income goal.
+ *
+ * The third step is the account: there is no separate sign-up — the Google account that Google Play
+ * already uses holds the subscription (and restores it on any phone), so starting the free trial *is*
+ * registering. Nothing after it opens until a subscription is active.
+ *
+ * The language applies the moment it is picked. The currency is asked *before* the goal and is never
+ * assumed — the goal field then shows the chosen currency. Everything typed survives going back.
  */
 export function OnboardingScreen({ onFinished }: { onFinished: () => void }) {
   const { t, fmt, language, currency } = useI18n();
   const store = useAppStore();
+  const { access, product } = useEntitlement();
   const changeLanguage = useChangeLanguage();
   const errorMessage = useErrorMessage();
   const nameId = useId();
@@ -72,7 +79,7 @@ export function OnboardingScreen({ onFinished }: { onFinished: () => void }) {
       setCurrencyError(true);
       return;
     }
-    setStep(3);
+    setStep(4);
   };
 
   const finish = (event?: FormEvent, skipGoal = false) => {
@@ -186,6 +193,34 @@ export function OnboardingScreen({ onFinished }: { onFinished: () => void }) {
 
         {step === 2 && (
           <>
+            <div className="onboarding__body">
+              {access.entitled ? (
+                <>
+                  <span className="onboarding__check" aria-hidden="true">
+                    <Icon name="check" size={40} />
+                  </span>
+                  <h1 className="onboarding__title">{t('onboarding.account.ready')}</h1>
+                </>
+              ) : (
+                <>
+                  <h1 className="onboarding__title">{t(paywallTitleKey(access, product))}</h1>
+                  <p className="onboarding__hint onboarding__hint--start">{t('onboarding.account.hint')}</p>
+                  <SubscribePanel />
+                </>
+              )}
+            </div>
+            {access.entitled && (
+              <div className="onboarding__actions">
+                <Button block className="cta" onClick={() => setStep(3)}>
+                  {t('common.continue')}
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+
+        {step === 3 && (
+          <>
             <div className="onboarding__body onboarding__body--list">
               <h1 className="onboarding__title">{t('onboarding.currency.title')}</h1>
               <p className="onboarding__hint onboarding__hint--start">{t('onboarding.currency.hint')}</p>
@@ -205,7 +240,7 @@ export function OnboardingScreen({ onFinished }: { onFinished: () => void }) {
           </>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <form className="onboarding__form" onSubmit={finish} noValidate>
             <div className="onboarding__body">
               <h1 className="onboarding__title">{t('onboarding.goal.title')}</h1>

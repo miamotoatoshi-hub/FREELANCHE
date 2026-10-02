@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { freezeClock, goTo, seed } from './helpers';
+import { dict, freezeClock, goTo, seed, setPlay } from './helpers';
 
 /**
  * Automated WCAG 2 A/AA audit (including colour contrast) of every screen and
@@ -79,6 +79,12 @@ test('every onboarding step passes axe', async ({ page }) => {
   await page.getByRole('button', { name: 'Continue' }).click();
   await audit(page, 'name');
   await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('button', { name: 'Start free trial' })).toBeVisible();
+  await audit(page, 'free trial');
+  await page.getByRole('button', { name: 'Start free trial' }).click();
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
+  await audit(page, 'subscribed');
+  await page.getByRole('button', { name: 'Continue' }).click();
   await audit(page, 'currency');
   await page.getByRole('searchbox', { name: 'Search currencies' }).fill('ruble');
   await audit(page, 'currency search');
@@ -100,3 +106,45 @@ for (const code of ['ar', 'ur', 'hi', 'bn', 'zh', 'ja', 'ru']) {
     await audit(page, `${code} settings`);
   });
 }
+
+test.describe('the locked screen', () => {
+  for (const theme of ['light', 'dark'] as const) {
+    test(`the paywall passes axe in the ${theme} theme`, async ({ page }) => {
+      await freezeClock(page);
+      await seed(page, { entries: ENTRIES, theme, subscription: 'none' });
+      await page.goto('/');
+      await expect(page.getByRole('button', { name: 'Start free trial' })).toBeVisible();
+      await audit(page, `paywall ${theme}`);
+    });
+  }
+
+  test('every paywall state passes axe: could not check, pending payment, no Google Play', async ({ page }) => {
+    await freezeClock(page);
+    await seed(page, { entries: ENTRIES, subscription: 'none' });
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: 'Start free trial' })).toBeVisible();
+
+    await setPlay(page, { fail: { query: 'service-unavailable' } });
+    await expect(page.getByRole('heading', { level: 1, name: "Can't check your subscription" })).toBeVisible();
+    await audit(page, 'paywall unverified');
+
+    await setPlay(page, { fail: {}, purchases: [{ productId: 'freelanche_premium', purchaseToken: 'p', purchaseTimeMs: 1, state: 'pending', autoRenewing: true, acknowledged: false }] });
+    await expect(page.getByRole('heading', { level: 1, name: 'Waiting for your payment' })).toBeVisible();
+    await audit(page, 'paywall pending');
+
+    await setPlay(page, { purchases: [] });
+    await page.getByRole('button', { name: 'Restore purchases' }).click();
+    await expect(page.getByText('No active subscription was found for this Google account.')).toBeVisible();
+    await audit(page, 'paywall nothing to restore');
+  });
+
+  for (const code of ['ar', 'ja', 'de', 'ko']) {
+    test(`the paywall passes axe in ${code}`, async ({ page }) => {
+      await freezeClock(page);
+      await seed(page, { entries: ENTRIES, language: code, subscription: 'none' });
+      await page.goto('/');
+      await expect(page.getByRole('button', { name: dict(code)['paywall.cta.trial'] })).toBeVisible();
+      await audit(page, `paywall ${code}`);
+    });
+  }
+});

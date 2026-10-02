@@ -92,9 +92,18 @@ function contentSecurityPolicy(): Plugin {
 
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
-export default defineConfig({
+/**
+ * Where subscription facts come from. Production builds always talk to Google Play; the pretend
+ * Play used by `npm run dev`, the unit tests and the browser end-to-end tests is compiled away.
+ *   vite build               → 'play'  (ship this)
+ *   vite build --mode mock   → 'mock'  (end-to-end tests only; never ship)
+ */
+export default defineConfig(({ command, mode }) => ({
   base: './',
-  define: { __APP_VERSION__: JSON.stringify(version) },
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+    __BILLING_MODE__: JSON.stringify(mode === 'mock' || command === 'serve' ? 'mock' : 'play'),
+  },
   plugins: [react(), offlineServiceWorker(), contentSecurityPolicy()],
   build: { target: 'es2022', sourcemap: false },
   test: {
@@ -103,4 +112,4 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     css: false,
   },
-});
+}));

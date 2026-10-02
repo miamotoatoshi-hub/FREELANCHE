@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { LANGUAGES, dict, freezeClock, goTo, seed, visible } from './helpers';
+import { LANGUAGES, dict, freezeClock, goTo, seed, startTrial, visible } from './helpers';
 
 /**
  * Layout and localisation across all 12 languages: nothing overflows or is clipped on a small phone, a
@@ -27,6 +27,8 @@ const CURRENCY: Record<string, string> = {
   ur: 'PKR',
   id: 'IDR',
   ja: 'JPY',
+  de: 'EUR',
+  ko: 'KRW',
 };
 
 const ENTRIES = [
@@ -38,7 +40,7 @@ const ENTRIES = [
   { date: '2026-08-10', amount: 2700, note: 'August project' },
 ];
 
-async function open(page: Page, language: string, size: (typeof SIZES)[number], options: { onboarded?: boolean } = {}) {
+async function open(page: Page, language: string, size: (typeof SIZES)[number], options: { onboarded?: boolean; subscription?: 'active' | 'cancelled' | 'none' } = {}) {
   await page.setViewportSize({ width: size.width, height: size.height });
   await freezeClock(page);
   await seed(page, {
@@ -46,7 +48,7 @@ async function open(page: Page, language: string, size: (typeof SIZES)[number], 
     name: 'Alexandra',
     currency: CURRENCY[language],
     entries: ENTRIES,
-    goal: CURRENCY[language] === 'IDR' || CURRENCY[language] === 'JPY' ? 3_000_000 : 3000,
+    goal: ['IDR', 'JPY', 'KRW'].includes(CURRENCY[language]!) ? 3_000_000 : 3000,
     ...options,
   });
   await page.goto('/');
@@ -164,6 +166,19 @@ for (const size of SIZES) {
       });
     }
 
+    for (const language of LANGUAGES) {
+      test(`${language.nativeName}: the locked screen (no subscription) fits too`, async ({ page }) => {
+        test.setTimeout(60_000);
+        const d = dict(language.code);
+        await open(page, language.code, size, { subscription: 'none' });
+        await expect(page.getByRole('button', { name: d['paywall.cta.trial'] })).toBeVisible();
+        await page.waitForTimeout(150);
+        expect(await layoutProblems(page), `paywall layout in ${language.englishName} at ${size.name}`).toEqual([]);
+        // the small print is shown in full, not cut off
+        await expect(page.locator('.paywall__terms')).toBeVisible();
+      });
+    }
+
     test(`onboarding fits in every language`, async ({ page }) => {
       test.setTimeout(120_000);
       await page.setViewportSize({ width: size.width, height: size.height });
@@ -184,6 +199,9 @@ for (const size of SIZES) {
         await page.getByLabel(d['name.label']!).fill('Alexandra');
         await check('name');
         await page.getByRole('button', { name: d['common.continue'] }).click();
+        await expect(page.getByRole('button', { name: d['paywall.cta.trial'] })).toBeVisible();
+        await check('free trial');
+        await startTrial(page, language.code);
         await page.getByRole('searchbox', { name: d['currency.search'] }).fill(CURRENCY[language.code]!);
         await check('currency');
         await page.locator('label.currency').first().click();
@@ -256,7 +274,7 @@ test.describe('right-to-left (Arabic and Urdu)', () => {
 });
 
 test.describe('typography', () => {
-  for (const code of ['ar', 'ur', 'hi', 'bn', 'zh', 'ja']) {
+  for (const code of ['ar', 'ur', 'hi', 'bn', 'zh', 'ja', 'ko']) {
     test(`${code}: connected and case-less scripts get no letter-spacing or forced capitals`, async ({ page }) => {
       await open(page, code, SIZES[1]);
       const offenders = await page.evaluate(() => {
@@ -277,6 +295,7 @@ test.describe('typography', () => {
   const STACKS: Record<string, RegExp> = {
     zh: /Noto Sans (CJK )?SC|PingFang SC|Microsoft YaHei/,
     ja: /Noto Sans (CJK )?JP|Hiragino|Yu Gothic|Meiryo/,
+    ko: /Noto Sans (CJK )?KR|Malgun|Apple SD Gothic/,
     hi: /Devanagari/,
     bn: /Bangla|Bengali/,
     ar: /Arabic|Geeza|Tahoma|Segoe UI/,
@@ -306,7 +325,7 @@ test.describe('regional formats', () => {
       expect(visible(await page.locator('.month__name').textContent()).toLowerCase()).toBe(month.replace(/\s*г\.$/, '').toLowerCase());
 
       // the goal line is the goal, formatted by Intl for this locale and currency
-      const goal = currency === 'IDR' || currency === 'JPY' ? 3_000_000 : 3000;
+      const goal = ['IDR', 'JPY', 'KRW'].includes(currency) ? 3_000_000 : 3000;
       const expected = new Intl.NumberFormat(language.defaultLocale, { style: 'currency', currency, maximumFractionDigits: 0 }).format(goal);
       const normalise = (text: string) => visible(text).replace(/[\s\u00a0\u202f\u200e\u200f\u061c]+/g, '');
       expect(normalise((await page.locator('.hero').textContent()) ?? '')).toContain(normalise(expected));

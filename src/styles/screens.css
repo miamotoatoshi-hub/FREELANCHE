@@ -393,3 +393,132 @@ button.row:hover {
     border-inline: 1px solid var(--border);
   }
 }
+
+/* ── subscription: paywall panel and the locked screen ───────────────────────────────────────── */
+
+.paywall {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.paywall__features {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.paywall__features li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  font-size: 0.9375rem;
+}
+
+.paywall__features svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--success);
+}
+
+.paywall__offer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 20px);
+  background: var(--surface);
+  text-align: center;
+}
+
+.paywall__offer:empty {
+  display: none;
+}
+
+.paywall__offer-main {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.paywall__offer-then,
+.paywall__status {
+  color: var(--text-2);
+}
+
+.paywall__status {
+  font-size: 1rem;
+}
+
+.paywall__message:empty {
+  display: none;
+}
+
+.paywall__message {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--radius-md, 14px);
+  background: var(--accent-soft, var(--surface));
+  font-size: 0.9375rem;
+}
+
+.paywall__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.paywall__terms {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.paywall__data {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-6);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--border);
+}
+
+.paywall__data-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.paywall__data-text {
+  font-size: 0.8125rem;
+  color: var(--text-2);
+}
+
+.paywall__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  margin-top: var(--s-2);
+}
+
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.link-btn--danger {
+  color: var(--danger);
+}

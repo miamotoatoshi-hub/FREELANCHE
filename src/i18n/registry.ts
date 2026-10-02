@@ -13,6 +13,7 @@ const loaders: Record<Exclude<Language, 'en'>, () => Promise<Dictionary>> = {
   hi: () => import('./locales/hi').then((m) => m.hi),
   es: () => import('./locales/es').then((m) => m.es),
   fr: () => import('./locales/fr').then((m) => m.fr),
+  de: () => import('./locales/de').then((m) => m.de),
   ar: () => import('./locales/ar').then((m) => m.ar),
   bn: () => import('./locales/bn').then((m) => m.bn),
   pt: () => import('./locales/pt').then((m) => m.pt),
@@ -20,6 +21,7 @@ const loaders: Record<Exclude<Language, 'en'>, () => Promise<Dictionary>> = {
   ur: () => import('./locales/ur').then((m) => m.ur),
   id: () => import('./locales/id').then((m) => m.id),
   ja: () => import('./locales/ja').then((m) => m.ja),
+  ko: () => import('./locales/ko').then((m) => m.ko),
 };
 
 const loaded = new Map<string, Dictionary>([['en', en]]);

@@ -2,19 +2,21 @@ import { expect, type Page } from '@playwright/test';
 import { LANGUAGES } from '../src/i18n/languages';
 import { ar } from '../src/i18n/locales/ar';
 import { bn } from '../src/i18n/locales/bn';
+import { de } from '../src/i18n/locales/de';
 import { en } from '../src/i18n/locales/en';
 import { es } from '../src/i18n/locales/es';
 import { fr } from '../src/i18n/locales/fr';
 import { hi } from '../src/i18n/locales/hi';
 import { id } from '../src/i18n/locales/id';
 import { ja } from '../src/i18n/locales/ja';
+import { ko } from '../src/i18n/locales/ko';
 import { pt } from '../src/i18n/locales/pt';
 import { ru } from '../src/i18n/locales/ru';
 import { ur } from '../src/i18n/locales/ur';
 import { zh } from '../src/i18n/locales/zh';
 
 /** The real dictionaries, so tests assert against the strings the app actually ships. */
-export const DICTIONARIES: Record<string, Record<string, string>> = { en, zh, hi, es, fr, ar, bn, pt, ru, ur, id, ja };
+export const DICTIONARIES: Record<string, Record<string, string>> = { en, zh, hi, es, fr, de, ar, bn, pt, ru, ur, id, ja, ko };
 export { LANGUAGES };
 export const dict = (code: string) => DICTIONARIES[code]!;
 
@@ -45,9 +47,27 @@ export async function seed(
     language?: string;
     name?: string;
     onboarded?: boolean;
+    /** What the pretend Google Play says: a current subscription (default), a cancelled-but-paid-up one, or none. */
+    subscription?: 'active' | 'cancelled' | 'none';
   } = {},
 ) {
-  const { entries = [], goal = 3000, currency = 'EUR', theme = 'light', language = 'en', name = '', onboarded = true } = options;
+  const { entries = [], goal = 3000, currency = 'EUR', theme = 'light', language = 'en', name = '', onboarded = true, subscription = 'active' } = options;
+  const mockPlay = {
+    purchases:
+      subscription === 'none'
+        ? []
+        : [
+            {
+              productId: 'freelanche_premium',
+              purchaseToken: 'e2e-token',
+              purchaseTimeMs: Date.parse(NOW) - 86_400_000,
+              state: 'purchased',
+              autoRenewing: subscription === 'active',
+              acknowledged: true,
+            },
+          ],
+    trialUsed: subscription !== 'none',
+  };
   const doc = {
     schemaVersion: 1,
     settings: {
@@ -71,15 +91,16 @@ export async function seed(
   };
   // Seed once per browser tab, so reloads (and "delete all data") behave like the real app.
   await page.addInitScript(
-    ({ key, value }) => {
+    ({ key, value, play }) => {
       if (!window.sessionStorage.getItem('e2e-seeded')) {
         window.sessionStorage.setItem('e2e-seeded', '1');
         window.localStorage.setItem(key, JSON.stringify(value));
         window.localStorage.setItem('freelanche:theme', value.settings.theme);
         window.localStorage.setItem('freelanche:lang', value.settings.language);
+        window.localStorage.setItem('freelanche-mock:billing', JSON.stringify(play));
       }
     },
-    { key: STORAGE_KEY, value: doc },
+    { key: STORAGE_KEY, value: doc, play: mockPlay },
   );
 }
 
@@ -94,7 +115,37 @@ export interface OnboardOptions {
   goal?: string;
 }
 
-/** The first-launch flow, in its real order: language → name → currency → goal. */
+/**
+ * The free-trial step (the account): start the trial with the pretend Google Play, or — if the account already
+ * has a subscription — just continue. Leaves you on the currency question.
+ */
+export async function startTrial(page: Page, language = 'en') {
+  const d = dict(language);
+  const start = page
+    .getByRole('button', { name: d['paywall.cta.trial'] })
+    .or(page.getByRole('button', { name: d['paywall.cta.subscribe'], exact: true }));
+  const ready = page.getByRole('heading', { name: d['onboarding.account.ready'] });
+  await expect(start.or(ready)).toBeVisible();
+  if (await start.isVisible()) await start.click();
+  await expect(ready).toBeVisible();
+  await page.getByRole('button', { name: d['common.continue'] }).click();
+}
+
+/** What the pretend Google Play currently holds, for assertions. */
+export async function playState(page: Page) {
+  return page.evaluate(() => JSON.parse(window.localStorage.getItem('freelanche-mock:billing') ?? '{"purchases":[]}') as { purchases: { autoRenewing: boolean; acknowledged: boolean; state: string }[]; manageOpened?: number; trialUsed?: boolean });
+}
+
+/** Changes what the pretend Google Play says, then tells the app (as a return to the foreground would). */
+export async function setPlay(page: Page, patch: Record<string, unknown>) {
+  await page.evaluate((change) => {
+    const current = JSON.parse(window.localStorage.getItem('freelanche-mock:billing') ?? '{}') as Record<string, unknown>;
+    window.localStorage.setItem('freelanche-mock:billing', JSON.stringify({ ...current, ...change }));
+    window.dispatchEvent(new Event('freelanche-mock:changed'));
+  }, patch);
+}
+
+/** The first-launch flow, in its real order: language → name → free trial → currency → goal. */
 export async function onboard(page: Page, options: OnboardOptions = {}) {
   const { language, name = 'Alex', currency = 'Euro', goal = '3000' } = options;
   await page.goto('/');
@@ -110,12 +161,15 @@ export async function onboard(page: Page, options: OnboardOptions = {}) {
   if (name !== null) await page.getByLabel(d['name.label']!).fill(name);
   await page.getByRole('button', { name: name === null ? d['onboarding.name.skip'] : d['common.continue'] }).click();
 
-  // 3 — currency (always chosen explicitly)
+  // 3 — the free trial is the account
+  await startTrial(page, language ?? 'en');
+
+  // 4 — currency (always chosen explicitly)
   await page.getByRole('searchbox', { name: d['currency.search'] }).fill(currency);
   await page.locator('label.currency').first().click();
   await page.getByRole('button', { name: d['common.continue'] }).click();
 
-  // 4 — goal
+  // 5 — goal
   if (goal) {
     await page.getByLabel(d['goal.amountLabel']!).fill(goal);
     await page.getByRole('button', { name: d['onboarding.goal.cta'] }).click();

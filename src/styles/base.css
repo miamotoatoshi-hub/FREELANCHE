@@ -366,6 +366,10 @@ svg {
     'Noto Sans CJK JP', 'Source Han Sans JP', sans-serif;
 }
 
+:lang(ko) {
+  font-family: var(--font-latin), 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Noto Sans CJK KR', 'Source Han Sans K', sans-serif;
+}
+
 :lang(hi) {
   font-family: var(--font-latin), 'Kohinoor Devanagari', 'Devanagari Sangam MN', 'Nirmala UI', 'Mangal', 'Noto Sans Devanagari',
     'Lohit Devanagari', sans-serif;
@@ -399,7 +403,7 @@ svg {
 }
 
 /* Letter-spacing and capitals break joined or case-less scripts (Arabic letters must touch). */
-:is(:lang(ar), :lang(ur), :lang(hi), :lang(bn), :lang(zh), :lang(ja)) :not(.amount, .amount-field__row, .amount-field__input) {
+:is(:lang(ar), :lang(ur), :lang(hi), :lang(bn), :lang(zh), :lang(ja), :lang(ko)) :not(.amount, .amount-field__row, .amount-field__input) {
   letter-spacing: normal !important;
   text-transform: none !important;
 }

@@ -1,9 +1,10 @@
 import { useRef, useState, type ChangeEvent, type ReactNode } from 'react';
-import { exportEntriesCsv, parseEntriesCsv } from '../../domain/csv';
+import { parseEntriesCsv } from '../../domain/csv';
 import { monthOf } from '../../domain/dates';
 import { resolveMonthlyGoal } from '../../domain/goals';
 import { importEntries, type ImportRow } from '../../domain/usecases';
 import type { ThemePreference } from '../../domain/types';
+import { useEntitlement, useEntitlementStore } from '../../billing/context';
 import { languageInfo } from '../../i18n/languages';
 import { useI18n } from '../../i18n/I18nProvider';
 import { createId } from '../../lib/id';
@@ -14,6 +15,7 @@ import { Icon, type IconName } from '../components/Icon';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { Sheet } from '../components/Sheet';
 import { useErrorMessage } from '../hooks/useErrorMessage';
+import { useExportCsv } from '../hooks/useExportCsv';
 import { InfoSheet } from '../sheets/InfoSheet';
 import { LanguageSheet } from '../sheets/LanguageSheet';
 import { NameSheet } from '../sheets/NameSheet';
@@ -37,6 +39,8 @@ export function SettingsScreen() {
   const ui = useUi();
   const store = useAppStore();
   const errorMessage = useErrorMessage();
+  const entitlements = useEntitlementStore();
+  const { access } = useEntitlement();
 
   const data = useAppSelector((s) => s.data);
   const today = useAppSelector((s) => s.today);
@@ -68,36 +72,7 @@ export function SettingsScreen() {
     }
   };
 
-  // ── export ──────────────────────────────────────────────────────────────────
-  const exportCsv = async () => {
-    if (entries.length === 0) {
-      ui.toast(t('settings.export.empty'));
-      return;
-    }
-    const filename = `freelanche-income-${today}.csv`;
-    const blob = new Blob([exportEntriesCsv(entries)], { type: 'text/csv;charset=utf-8' });
-    const file = new File([blob], filename, { type: 'text/csv' });
-
-    // On phones use the native share sheet ("Save to Files", email, …); elsewhere download directly.
-    const touch = window.matchMedia?.('(pointer: coarse)').matches;
-    if (touch && navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: filename });
-        return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-      }
-    }
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    ui.toast(t('settings.export.done'));
-  };
+  const exportCsv = useExportCsv();
 
   // ── import ──────────────────────────────────────────────────────────────────
   const onFileChosen = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -149,6 +124,25 @@ export function SettingsScreen() {
     else ui.toast(errorMessage(result.error));
   };
 
+  // ── subscription ────────────────────────────────────────────────────────────
+  const restorePurchases = async () => {
+    await entitlements.restore();
+    const { notice, error } = entitlements.getSnapshot();
+    if (notice === 'restored') ui.toast(t('paywall.notice.restored'));
+    else if (notice === 'nothing-to-restore') ui.toast(t('paywall.notice.nothing'));
+    else if (error) ui.toast(t(error === 'billing-unavailable' ? 'paywall.error.billing' : error === 'service-unavailable' ? 'paywall.error.service' : 'paywall.error.generic'));
+    entitlements.dismissNotice();
+  };
+
+  const manageSubscription = async () => {
+    await entitlements.manageSubscription();
+    const { error } = entitlements.getSnapshot();
+    if (error) ui.toast(t(error === 'billing-unavailable' ? 'paywall.error.billing' : 'paywall.error.generic'));
+    entitlements.dismissNotice();
+  };
+
+  const subscriptionHint = access.status === 'active-ending' ? t('settings.subscription.ending') : access.stale ? t('settings.subscription.stale') : undefined;
+
   const themeOptions: { value: ThemePreference; label: string }[] = [
     { value: 'light', label: t('settings.theme.light') },
     { value: 'dark', label: t('settings.theme.dark') },
@@ -174,6 +168,18 @@ export function SettingsScreen() {
           valueAttrs={{ lang: nativeLanguage.code, dir: nativeLanguage.dir }}
           onClick={() => setOverlay('language')}
         />
+      </Group>
+
+      <Group title={t('settings.section.subscription')}>
+        <div className="row row--static">
+          <span className="row__text">
+            <span className="row__label">{t('settings.subscription')}</span>
+            {subscriptionHint && <span className="row__hint">{subscriptionHint}</span>}
+          </span>
+          <span className="row__value">{t('settings.subscription.active')}</span>
+        </div>
+        <Row label={t('settings.subscription.manage')} hint={t('settings.subscription.manage.hint')} onClick={() => void manageSubscription()} />
+        <Row label={t('paywall.restore')} onClick={() => void restorePurchases()} />
       </Group>
 
       <Group title={t('settings.section.finance')}>
@@ -229,10 +235,10 @@ export function SettingsScreen() {
       )}
 
       {overlay === 'privacy' && (
-        <InfoSheet title={t('privacy.title')} paragraphs={[t('privacy.p1'), t('privacy.p2'), t('privacy.p3')]} onClose={() => setOverlay(null)} />
+        <InfoSheet title={t('privacy.title')} paragraphs={[t('privacy.p1'), t('privacy.p2'), t('privacy.p3'), t('privacy.p4')]} onClose={() => setOverlay(null)} />
       )}
       {overlay === 'terms' && (
-        <InfoSheet title={t('terms.title')} paragraphs={[t('terms.p1'), t('terms.p2'), t('terms.p3')]} onClose={() => setOverlay(null)} />
+        <InfoSheet title={t('terms.title')} paragraphs={[t('terms.p1'), t('terms.p2'), t('terms.p3'), t('terms.p4')]} onClose={() => setOverlay(null)} />
       )}
 
       {overlay === 'delete-all' && (

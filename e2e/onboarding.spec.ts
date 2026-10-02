@@ -1,9 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
-import { LANGUAGES, dict, freezeClock, goTo, onboard, seed, storedData, visible } from './helpers';
+import { LANGUAGES, dict, freezeClock, goTo, onboard, seed, startTrial, storedData, visible } from './helpers';
 
 /**
  * The first-launch flow, in its required order:
- *   1 language → 2 name → 3 currency → 4 income goal
+ *   1 language → 2 name → 3 free trial (the account) → 4 currency → 5 income goal
  * Run against the production build in a real browser (mobile viewport).
  */
 
@@ -15,31 +15,42 @@ const title = (page: Page) => page.getByRole('heading', { level: 1 });
 const next = (page: Page, language = 'en') => page.getByRole('button', { name: dict(language)['common.continue'] });
 
 test.describe('order and content', () => {
-  test('asks language → name → currency → goal, then greets you by name', async ({ page }) => {
+  test('asks language → name → free trial → currency → goal, then greets you by name', async ({ page }) => {
     await page.goto('/');
 
     // 1 — the very first screen is the language question
     await expect(title(page)).toHaveText('What language would you like to use in the app?');
-    await expect(page.getByText('Step 1 of 4').first()).toBeVisible();
+    await expect(page.getByText('Step 1 of 5').first()).toBeVisible();
     await next(page).click();
 
     // 2 — name
     await expect(title(page)).toHaveText('What should we call you?');
-    await expect(page.getByText('Step 2 of 4').first()).toBeVisible();
+    await expect(page.getByText('Step 2 of 5').first()).toBeVisible();
     await page.getByLabel('Your name or nickname').fill('Alex');
     await next(page).click();
 
-    // 3 — currency, asked before any goal
+    // 3 — the free trial: the Google account is the account, so there is no password to invent
+    await expect(title(page)).toHaveText('Start your free trial');
+    await expect(page.getByText('Step 3 of 5').first()).toBeVisible();
+    await expect(page.getByText('7 days free')).toBeVisible();
+    await expect(page.getByText('then €2.99 per month')).toBeVisible();
+    await expect(page.getByLabel('Monthly goal amount')).toHaveCount(0);
+    await expect(next(page)).toHaveCount(0); // nothing past this point opens without a subscription
+    await page.getByRole('button', { name: 'Start free trial' }).click();
+    await expect(title(page)).toHaveText("You're all set — your subscription is active.");
+    await next(page).click();
+
+    // 4 — currency, asked before any goal
     await expect(title(page)).toHaveText('Which currency would you like to use?');
-    await expect(page.getByText('Step 3 of 4').first()).toBeVisible();
+    await expect(page.getByText('Step 4 of 5').first()).toBeVisible();
     await expect(page.getByLabel('Monthly goal amount')).toHaveCount(0);
     await page.getByRole('searchbox', { name: 'Search currencies' }).fill('euro');
     await page.locator('label.currency', { hasText: 'Euro' }).click();
     await next(page).click();
 
-    // 4 — goal, with the chosen currency beside the amount
+    // 5 — goal, with the chosen currency beside the amount
     await expect(title(page)).toHaveText('What is your monthly income goal?');
-    await expect(page.getByText('Step 4 of 4').first()).toBeVisible();
+    await expect(page.getByText('Step 5 of 5').first()).toBeVisible();
     await expect(page.locator('.amount-field__symbol')).toHaveText('€');
     await page.getByLabel('Monthly goal amount').fill('3000');
     await page.getByRole('button', { name: 'Start tracking' }).click();
@@ -64,6 +75,7 @@ test.describe('order and content', () => {
     await next(page).click();
     await page.getByLabel('Your name or nickname').fill('Sam');
     await next(page).click();
+    await startTrial(page);
     await page.getByRole('searchbox', { name: 'Search currencies' }).fill('yen');
     await page.locator('label.currency', { hasText: 'Japanese Yen' }).click();
     await next(page).click();
@@ -71,6 +83,8 @@ test.describe('order and content', () => {
 
     await page.getByRole('button', { name: 'Back' }).click(); // → currency
     await expect(page.getByRole('radio', { name: /Japanese Yen/ })).toBeChecked();
+    await page.getByRole('button', { name: 'Back' }).click(); // → account (already subscribed)
+    await expect(title(page)).toHaveText("You're all set — your subscription is active.");
     await page.getByRole('button', { name: 'Back' }).click(); // → name
     await expect(page.getByLabel('Your name or nickname')).toHaveValue('Sam');
     await page.getByRole('button', { name: 'Back' }).click(); // → language
@@ -78,6 +92,7 @@ test.describe('order and content', () => {
 
     await next(page).click();
     await next(page).click();
+    await next(page).click(); // account: already subscribed
     await next(page).click(); // currency is still chosen, so no need to pick again
     await expect(page.getByLabel('Monthly goal amount')).toHaveValue('300,000'); // goal kept too
   });
@@ -92,7 +107,7 @@ test.describe('order and content', () => {
     await expect(title(page)).toHaveText('What should we call you?'); // stays put
     await name.fill('Sunny 🌞');
     await next(page).click();
-    await expect(title(page)).toHaveText('Which currency would you like to use?');
+    await expect(title(page)).toHaveText('Start your free trial');
     expect((await storedData(page)).settings.name).toBe('Sunny 🌞');
 
     await page.getByRole('button', { name: 'Back' }).click();
@@ -109,7 +124,7 @@ test.describe('order and content', () => {
 });
 
 test.describe('language', () => {
-  test('all 12 languages can be chosen, and the interface changes the moment one is picked', async ({ page }) => {
+  test('every language can be chosen, and the interface changes the moment one is picked', async ({ page }) => {
     await page.goto('/');
     for (const language of LANGUAGES) {
       const d = dict(language.code);
@@ -122,10 +137,18 @@ test.describe('language', () => {
     }
   });
 
+  test('offers all the required languages: English, Russian, Chinese, Spanish, Hindi, Arabic, Portuguese, Bengali, Japanese, French, German, Korean', async ({ page }) => {
+    await page.goto('/');
+    for (const required of ['English', 'Русский', '中文', 'Español', 'हिन्दी', 'العربية', 'Português', 'বাংলা', '日本語', 'Français', 'Deutsch', '한국어']) {
+      await expect(page.locator('label.language', { hasText: required })).toHaveCount(1);
+    }
+    expect(LANGUAGES.length).toBeGreaterThanOrEqual(12);
+  });
+
   test('every language is written in its own script, with the English name beneath', async ({ page }) => {
     await page.goto('/');
     const labels = await page.locator('label.language').allInnerTexts();
-    expect(labels).toHaveLength(12);
+    expect(labels).toHaveLength(LANGUAGES.length);
     for (const language of LANGUAGES) {
       const label = labels.find((text) => text.includes(language.nativeName))!;
       expect(label, language.nativeName).toBeTruthy();
@@ -169,6 +192,7 @@ test.describe('language', () => {
     );
     await input.fill('Alex'); // a Latin name in an Arabic UI still works
     await next(page, 'ar').click();
+    await startTrial(page, 'ar');
     await expect(page.locator('.search__icon')).toBeVisible();
     const icon = await page.locator('.search__icon').boundingBox();
     const field = await page.locator('.search').boundingBox();
@@ -181,6 +205,7 @@ test.describe('currency', () => {
     await page.goto('/');
     await next(page).click();
     await next(page).click(); // skip name
+    await startTrial(page);
     await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
     await next(page).click();
     await expect(page.getByRole('alert')).toHaveText('Choose a currency to continue.');
@@ -195,6 +220,7 @@ test.describe('currency', () => {
     await page.goto('/');
     await next(page).click();
     await next(page).click();
+    await startTrial(page);
     const search = page.getByRole('searchbox', { name: 'Search currencies' });
     const rows = page.locator('label.currency');
 
@@ -224,6 +250,7 @@ test.describe('currency', () => {
     await page.goto('/');
     await next(page).click();
     await next(page).click();
+    await startTrial(page);
     for (const [code, name, symbol] of [
       ['EUR', 'Euro', '€'],
       ['USD', 'US Dollar', '$'],
@@ -252,6 +279,7 @@ test.describe('currency', () => {
       await page.reload();
       await next(page).click();
       await next(page).click();
+      await startTrial(page);
       await page.getByRole('searchbox', { name: 'Search currencies' }).fill(query!);
       await page.locator('label.currency').first().click();
       await next(page).click();
@@ -267,6 +295,7 @@ test.describe('currency', () => {
     await page.locator('label.language', { hasText: 'Русский' }).click();
     await page.getByRole('button', { name: ru['common.continue'] }).click();
     await page.getByRole('button', { name: ru['onboarding.name.skip'] }).click();
+    await startTrial(page, 'ru');
     await page.getByRole('searchbox', { name: ru['currency.search'] }).fill('RUB');
     await page.locator('label.currency').first().click();
     await page.getByRole('button', { name: ru['common.continue'] }).click();
@@ -326,6 +355,10 @@ test.describe('after onboarding', () => {
   test('people who finished onboarding before names and languages existed are not asked again', async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem(
+        'freelanche-mock:billing',
+        JSON.stringify({ purchases: [{ productId: 'freelanche_premium', purchaseToken: 't', purchaseTimeMs: 1, state: 'purchased', autoRenewing: true, acknowledged: true }], trialUsed: true }),
+      );
+      window.localStorage.setItem(
         'freelanche:data',
         JSON.stringify({
           schemaVersion: 1,
@@ -339,6 +372,27 @@ test.describe('after onboarding', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ваша панель доходов'); // no name yet
     await expect(page.locator('.ring__center')).toContainText('500');
     await expect(page.getByText(dict('ru')['onboarding.name.title']!)).toHaveCount(0);
+  });
+
+  test('…and without a subscription they meet the paywall, not the questions — then pick up exactly where they were', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        'freelanche:data',
+        JSON.stringify({
+          schemaVersion: 1,
+          settings: { currency: 'EUR', defaultMonthlyGoal: 300000, theme: 'light', onboardingCompleted: true, language: 'ru' },
+          entries: [{ id: 'old', amount: 50000, currency: 'EUR', date: '2026-09-03', createdAt: '2026-09-03T10:00:00.000Z', updatedAt: '2026-09-03T10:00:00.000Z' }],
+          goals: [],
+        }),
+      );
+    });
+    await page.goto('/');
+    const ru = dict('ru');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(ru['paywall.title.trial']!);
+    await expect(page.getByRole('heading', { name: ru['onboarding.language.title']! })).toHaveCount(0);
+    await page.getByRole('button', { name: ru['paywall.cta.trial'] }).click();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ваша панель доходов');
+    await expect(page.locator('.ring__center')).toContainText('500'); // the old entry is still there
   });
 
   test('Settings lets you change name, language, currency and goal — and they persist', async ({ page }) => {

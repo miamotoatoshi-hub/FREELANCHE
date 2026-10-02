@@ -24,13 +24,14 @@ beforeAll(async () => {
 });
 
 describe('the language list', () => {
-  it('offers exactly the 12 required languages, written in their own scripts', () => {
+  it('offers exactly the 14 supported languages, written in their own scripts', () => {
     expect(LANGUAGES.map((l) => [l.code, l.nativeName])).toEqual([
       ['en', 'English'],
       ['zh', '中文 (简体)'],
       ['hi', 'हिन्दी'],
       ['es', 'Español'],
       ['fr', 'Français'],
+      ['de', 'Deutsch'],
       ['ar', 'العربية'],
       ['bn', 'বাংলা'],
       ['pt', 'Português'],
@@ -38,6 +39,7 @@ describe('the language list', () => {
       ['ur', 'اردو'],
       ['id', 'Bahasa Indonesia'],
       ['ja', '日本語'],
+      ['ko', '한국어'],
     ]);
   });
 
@@ -56,7 +58,9 @@ describe('the language list', () => {
 
   it('recognises supported codes only', () => {
     expect(isLanguage('ur')).toBe(true);
-    expect(isLanguage('de')).toBe(false);
+    expect(isLanguage('de')).toBe(true);
+    expect(isLanguage('ko')).toBe(true);
+    expect(isLanguage('it')).toBe(false);
     expect(isLanguage(undefined)).toBe(false);
     expect(languageInfo('zz').code).toBe(DEFAULT_LANGUAGE);
   });
@@ -133,7 +137,7 @@ describe.each(others)('%s translations', (code) => {
   });
 
   it('are really translated, not English left in place', () => {
-    const latin = ['es', 'fr', 'pt', 'id'].includes(code);
+    const latin = ['es', 'fr', 'pt', 'id', 'de'].includes(code);
     const untouched = Object.entries(english).filter(([key, value]) => {
       if (key === 'app.name' || value.length < 14) return false;
       const translated = dictionary()[key]!;
@@ -195,8 +199,8 @@ describe('createTranslator', () => {
   });
 
   it('falls back to English when a language has not been loaded or is unknown', () => {
-    expect(createTranslator('de', 'de-DE').language).toBe('en');
-    expect(createTranslator('de', 'de-DE').t('common.save')).toBe('Save');
+    expect(createTranslator('it', 'it-IT').language).toBe('en');
+    expect(createTranslator('it', 'it-IT').t('common.save')).toBe('Save');
   });
 
   it('never rejects when asked to load something unknown', async () => {

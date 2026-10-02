@@ -37,6 +37,9 @@ export const en = {
   'onboarding.name.hint': 'A nickname is fine. It stays on this device.',
   'onboarding.name.placeholder': 'e.g. Alex',
   'onboarding.name.skip': 'Skip for now',
+  'onboarding.account.hint':
+    "Your Google account holds your subscription, so there's no new password to create — and you can restore it on any phone.",
+  'onboarding.account.ready': "You're all set — your subscription is active.",
   'onboarding.currency.title': 'Which currency would you like to use?',
   'onboarding.currency.hint': 'Pick the currency you earn in. If you change it later, nothing is converted.',
   'onboarding.currency.suggested': 'Suggested for your device',
@@ -221,6 +224,13 @@ export const en = {
   'settings.privacy': 'Privacy',
   'settings.terms': 'Terms',
   'settings.saved': 'Saved',
+  'settings.section.subscription': 'Subscription',
+  'settings.subscription': 'Freelanche subscription',
+  'settings.subscription.active': 'Active',
+  'settings.subscription.ending': 'Cancelled — active until the end of the paid period',
+  'settings.subscription.stale': "Couldn't reach Google Play — showing your last check",
+  'settings.subscription.manage': 'Manage subscription',
+  'settings.subscription.manage.hint': 'Change or cancel in Google Play',
 
   'nameSheet.title': 'Your name',
   'nameSheet.hint': 'Used to greet you in the app. A nickname is fine.',
@@ -253,10 +263,55 @@ export const en = {
   'privacy.p2':
     'Nothing you enter is sent anywhere. The app never asks for your contacts, location, camera or microphone.',
   'privacy.p3': 'You can export a copy of your data or erase everything at any time from Settings.',
+  'privacy.p4':
+    'Subscriptions are handled entirely by Google Play. Freelanche never sees or stores your card or bank details, and checking your subscription sends nothing about you to us.',
   'terms.title': 'Terms',
   'terms.p1': 'Freelanche is a simple tool for keeping track of the money you earn. It is provided as is.',
   'terms.p2': 'It does not give financial, accounting or tax advice, and its figures are only as complete as what you enter.',
   'terms.p3': 'Keep your own backups: export your data from Settings whenever you like.',
+  'terms.p4':
+    "Freelanche is a paid subscription with a free trial, billed monthly through Google Play and renewed until you cancel. Refunds follow Google Play's policies.",
+
+  'paywall.title.trial': 'Start your free trial',
+  'paywall.title.subscribe': 'Subscribe to Freelanche',
+  'paywall.title.lapsed': 'Your subscription has ended',
+  'paywall.title.unverified': "Can't check your subscription",
+  'paywall.title.pending': 'Waiting for your payment',
+  'paywall.title.unavailable': 'Open Freelanche from Google Play',
+  'paywall.subtitle': 'Everything in Freelanche is included.',
+  'paywall.subtitle.lapsed': 'Your income data is safe on this device. Subscribe again to keep tracking.',
+  'paywall.feature.track': 'Track your income and see your progress toward your goal',
+  'paywall.feature.insights': 'History, calendar and insights',
+  'paywall.feature.languages': 'Available in {count} languages',
+  'paywall.feature.private': 'Private: your data stays on your device and works offline',
+  'paywall.offer.trial.one': '{count} day free',
+  'paywall.offer.trial.other': '{count} days free',
+  'paywall.offer.then': 'then {price} per month',
+  'paywall.offer.price': '{price} per month',
+  'paywall.offer.loading': 'Loading the price from Google Play…',
+  'paywall.cta.trial': 'Start free trial',
+  'paywall.cta.subscribe': 'Subscribe',
+  'paywall.terms.trial':
+    "After the free trial, {price} per month is charged to your Google Play account and renews automatically each month until you cancel. Cancel any time in your Google Play subscription settings — cancel before the trial ends and you won't be charged.",
+  'paywall.terms.subscribe':
+    '{price} per month is charged to your Google Play account and renews automatically each month until you cancel. Cancel any time in your Google Play subscription settings.',
+  'paywall.restore': 'Restore purchases',
+  'paywall.checking': 'Checking your subscription…',
+  'paywall.unverified':
+    "We couldn't reach Google Play to check your subscription. Connect to the internet and try again.",
+  'paywall.pending': "Your payment is pending. You'll get access as soon as Google Play confirms it.",
+  'paywall.unavailable':
+    'Subscriptions work only in the Freelanche app installed from Google Play on an Android phone.',
+  'paywall.notice.restored': 'Subscription restored. Welcome back!',
+  'paywall.notice.nothing': 'No active subscription was found for this Google account.',
+  'paywall.error.billing':
+    "Google Play Billing isn't available. Check that the Google Play Store is installed, up to date and signed in, then try again.",
+  'paywall.error.service': "Couldn't reach Google Play. Check your connection and try again.",
+  'paywall.error.item': "This subscription isn't available right now. Please try again later.",
+  'paywall.error.generic': 'Something went wrong. Please try again.',
+  'paywall.yourData': 'Your data is safe',
+  'paywall.yourData.text':
+    'Your income history stays on this device. You can export it or delete it at any time.',
 
   'storage.unavailable':
     "Your browser is blocking storage, so income can't be saved once you close the app.",

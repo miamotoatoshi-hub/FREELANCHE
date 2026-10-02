@@ -1,5 +1,5 @@
 import { test } from '@playwright/test';
-import { LANGUAGES, dict, freezeClock, goTo, seed } from './helpers';
+import { LANGUAGES, dict, freezeClock, goTo, seed, startTrial } from './helpers';
 
 /**
  * Screenshot tour for design review. Only runs when SHOTS_DIR is set:
@@ -89,6 +89,9 @@ test('onboarding, four steps', async ({ page }) => {
   await page.getByLabel('Your name').fill('Alex');
   await page.screenshot({ path: `${dir}/onb-2-name.png` });
   await page.getByRole('button', { name: 'Continue' }).click();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${dir}/onb-2b-trial.png`, fullPage: true });
+  await startTrial(page);
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${dir}/onb-3-currency.png` });
   await page.getByRole('searchbox', { name: 'Search currencies' }).fill('eur');
@@ -117,6 +120,9 @@ for (const language of LANGUAGES) {
     await page.waitForTimeout(250);
     await page.screenshot({ path: `${dir}/lang-${language.code}-2-name.png` });
     await page.getByRole('button', { name: d['common.continue'] }).click();
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${dir}/lang-${language.code}-2b-trial.png`, fullPage: true });
+    await startTrial(page, language.code);
     await page.waitForTimeout(250);
     await page.screenshot({ path: `${dir}/lang-${language.code}-3-currency.png` });
     await page.getByRole('searchbox', { name: d['currency.search'] }).fill('USD');
@@ -142,6 +148,19 @@ for (const language of LANGUAGES) {
     }
   });
 }
+
+test('locked screens', async ({ browser }) => {
+  for (const [code, width, height] of [['en', 390, 844], ['ar', 360, 740], ['ko', 360, 740], ['de', 320, 568]] as const) {
+    const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Europe/Berlin' });
+    const page = await context.newPage();
+    await freezeClock(page);
+    await seed(page, { entries: ENTRIES, language: code, name: 'Alex', subscription: 'none' });
+    await page.goto('/');
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `${dir}/locked-${code}.png`, fullPage: true });
+    await context.close();
+  }
+});
 
 test('desktop width', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1, locale: 'en-US', timezoneId: 'Europe/Berlin' });

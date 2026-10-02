@@ -85,8 +85,10 @@ describe('numbers and dates', () => {
 describe('locale helpers', () => {
   it('picks the interface language from device languages', () => {
     expect(detectLanguage(['ru-RU', 'en-US'])).toBe('ru');
-    expect(detectLanguage(['de-DE', 'en-GB'])).toBe('en');
-    expect(detectLanguage(['de-DE'])).toBe('en');
+    expect(detectLanguage(['it-IT', 'en-GB'])).toBe('en'); // Italian is not offered
+    expect(detectLanguage(['it-IT'])).toBe('en');
+    expect(detectLanguage(['de-AT', 'en-GB'])).toBe('de');
+    expect(detectLanguage(['ko-KR'])).toBe('ko');
     expect(detectLanguage([])).toBe('en');
     expect(detectLanguage(['ja-JP'])).toBe('ja');
     expect(detectLanguage(['ar-EG'])).toBe('ar');
@@ -139,7 +141,7 @@ describe('locale helpers', () => {
 
 describe('every supported language formats money, dates and numbers', () => {
   const locales: Record<string, string> = {
-    en: 'en-US', zh: 'zh-CN', hi: 'hi-IN', es: 'es-ES', fr: 'fr-FR', ar: 'ar', bn: 'bn-BD', pt: 'pt-BR', ru: 'ru-RU', ur: 'ur-PK', id: 'id-ID', ja: 'ja-JP',
+    en: 'en-US', zh: 'zh-CN', hi: 'hi-IN', es: 'es-ES', fr: 'fr-FR', ar: 'ar', bn: 'bn-BD', pt: 'pt-BR', ru: 'ru-RU', ur: 'ur-PK', id: 'id-ID', ja: 'ja-JP', de: 'de-DE', ko: 'ko-KR',
   };
 
   it.each(Object.entries(locales))('%s (%s)', (_code, locale) => {

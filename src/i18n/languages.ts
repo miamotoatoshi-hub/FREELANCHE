@@ -28,6 +28,7 @@ export const LANGUAGES = [
   { code: 'hi', nativeName: 'हिन्दी', englishName: 'Hindi', dir: 'ltr', defaultLocale: 'hi-IN' },
   { code: 'es', nativeName: 'Español', englishName: 'Spanish', dir: 'ltr', defaultLocale: 'es-ES' },
   { code: 'fr', nativeName: 'Français', englishName: 'French', dir: 'ltr', defaultLocale: 'fr-FR' },
+  { code: 'de', nativeName: 'Deutsch', englishName: 'German', dir: 'ltr', defaultLocale: 'de-DE' },
   { code: 'ar', nativeName: 'العربية', englishName: 'Arabic', dir: 'rtl', defaultLocale: 'ar' },
   { code: 'bn', nativeName: 'বাংলা', englishName: 'Bengali', dir: 'ltr', defaultLocale: 'bn-BD' },
   { code: 'pt', nativeName: 'Português', englishName: 'Portuguese', dir: 'ltr', defaultLocale: 'pt-BR' },
@@ -35,6 +36,7 @@ export const LANGUAGES = [
   { code: 'ur', nativeName: 'اردو', englishName: 'Urdu', dir: 'rtl', defaultLocale: 'ur-PK' },
   { code: 'id', nativeName: 'Bahasa Indonesia', englishName: 'Indonesian', dir: 'ltr', defaultLocale: 'id-ID' },
   { code: 'ja', nativeName: '日本語', englishName: 'Japanese', dir: 'ltr', defaultLocale: 'ja-JP' },
+  { code: 'ko', nativeName: '한국어', englishName: 'Korean', dir: 'ltr', defaultLocale: 'ko-KR' },
 ] as const satisfies readonly LanguageInfo[];
 
 export type Language = (typeof LANGUAGES)[number]['code'];

@@ -635,6 +635,10 @@ test.describe('damaged data', () => {
   test('a few bad records are dropped without taking the app down', async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem(
+        'freelanche-mock:billing',
+        JSON.stringify({ purchases: [{ productId: 'freelanche_premium', purchaseToken: 't', purchaseTimeMs: 1, state: 'purchased', autoRenewing: true, acknowledged: true }], trialUsed: true }),
+      );
+      window.localStorage.setItem(
         'freelanche:data',
         JSON.stringify({
           schemaVersion: 1,
