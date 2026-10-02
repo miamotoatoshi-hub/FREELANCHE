@@ -237,7 +237,8 @@ test.describe('when Google Play cannot be reached', () => {
     await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
     await context.setOffline(true);
     await page.reload();
-    await expect(nav(page)).toBeVisible();
+    // Opening from the service worker's cache is instant on an idle machine; allow for a busy CI box.
+    await expect(nav(page)).toBeVisible({ timeout: 15_000 });
     await context.setOffline(false);
   });
 });

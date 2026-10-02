@@ -147,10 +147,15 @@ export function createPlayGateway(plugin: FreelancheBillingPlugin = registerPlug
     onPurchasesChanged(listener) {
       let handle: PluginListenerHandle | null = null;
       let removed = false;
-      void plugin.addListener('purchasesChanged', listener).then((created) => {
-        if (removed) void created.remove();
-        else handle = created;
-      });
+      plugin
+        .addListener('purchasesChanged', listener)
+        .then((created) => {
+          if (removed) void created.remove();
+          else handle = created;
+        })
+        .catch(() => {
+          /* without the listener the app still re-checks at launch, on resume and every few hours */
+        });
       return () => {
         removed = true;
         void handle?.remove();

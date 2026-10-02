@@ -93,6 +93,13 @@ describe('the Play gateway', () => {
     }
   });
 
+  it('survives a plugin that cannot register listeners', async () => {
+    const plugin = fakePlugin({ addListener: vi.fn().mockRejectedValue(new Error('not implemented')) });
+    const stop = createPlayGateway(plugin).onPurchasesChanged(() => undefined);
+    await Promise.resolve();
+    expect(() => stop()).not.toThrow();
+  });
+
   it('removes its listener, even if removal is requested before Google Play finished registering it', async () => {
     const remove = vi.fn().mockResolvedValue(undefined);
     const plugin = fakePlugin({ addListener: vi.fn().mockResolvedValue({ remove }) });
