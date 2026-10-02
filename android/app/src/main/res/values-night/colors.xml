@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ...and its dark theme, so a dark-mode phone never flashes white. -->
+    <color name="splash_background">#0E0F12</color>
+</resources>

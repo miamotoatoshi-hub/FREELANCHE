@@ -1,0 +1,78 @@
+apply plugin: 'com.android.application'
+
+// Version name and code come from package.json (1.2.3 → 10203), so the web app and the Android app agree.
+// Google Play needs a higher versionCode for every upload: bump package.json, or set FREELANCHE_VERSION_CODE.
+def webPackage = new groovy.json.JsonSlurper().parse(file('../../package.json'))
+def (versionMajor, versionMinor, versionPatch) = webPackage.version.tokenize('.').collect { it.toInteger() }
+
+// Signing secrets are never committed. Put them in android/keystore.properties (git-ignored) or in the
+// environment of the machine doing the build. With neither, `bundleRelease` produces an unsigned bundle.
+def keystoreProps = new Properties()
+def keystoreFile = rootProject.file('keystore.properties')
+if (keystoreFile.exists()) { keystoreFile.withInputStream { keystoreProps.load(it) } }
+def signingValue = { String name, String env -> keystoreProps[name] ?: System.getenv(env) }
+
+android {
+    namespace = "app.freelanche.tracker"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "app.freelanche.tracker"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode((System.getenv('FREELANCHE_VERSION_CODE') ?: (versionMajor * 10000 + versionMinor * 100 + versionPatch)).toInteger())
+        versionName webPackage.version
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        release {
+            def storePath = signingValue('storeFile', 'FREELANCHE_UPLOAD_STORE_FILE')
+            if (storePath) {
+                storeFile rootProject.file(storePath)
+                storePassword signingValue('storePassword', 'FREELANCHE_UPLOAD_STORE_PASSWORD')
+                keyAlias signingValue('keyAlias', 'FREELANCHE_UPLOAD_KEY_ALIAS')
+                keyPassword signingValue('keyPassword', 'FREELANCHE_UPLOAD_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            // Shrink and obfuscate; the web app inside is untouched.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (signingValue('storeFile', 'FREELANCHE_UPLOAD_STORE_FILE')) { signingConfig signingConfigs.release }
+        }
+    }
+    // The app picks its own language, so Play must not split resources by the phone's language.
+    bundle {
+        language { enableSplit = false }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    // Google Play Billing: the subscription. Check developer.android.com/google/play/billing/release-notes for the
+    // newest release; Google requires an up-to-date major version for new uploads.
+    implementation "com.android.billingclient:billing:$billingVersion"
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'

@@ -4,7 +4,7 @@ A calm, offline-first income tracker for freelancers. Think of a water-tracking 
 
 **Open the app → see your progress → add income → done.**
 
-No account. No ads. No network. Your data never leaves the device.
+No account of its own. No ads. No analytics. Your data never leaves the device. Sold as a Google Play subscription with a 7-day free trial — there is no free tier.
 
 ## What it does
 
@@ -12,16 +12,17 @@ No account. No ads. No network. Your data never leaves the device.
 - **Add income** — one bottom sheet: amount, optional note, date (defaults to today), quick-add buttons. Three taps for the usual case.
 - **History** — entries grouped by day, edit / delete (with confirmation), and a simple calendar to look at a single day.
 - **Insights** — best day, average per working day, days with income, income streak, and a neutral comparison with last month. Nothing is shown that the data can't support.
-- **First launch** — four short steps, always in this order: **language → name → currency → monthly goal**. The goal field shows the currency you just picked (€2,000 · $2,000 · ₽200,000); nothing is assumed, and the goal can be skipped.
+- **First launch** — five short steps, always in this order: **language → name → free trial → currency → monthly goal**. The third step *is* the account: the Google account that Google Play already uses holds the subscription (no password to invent) and restores it on any phone. The goal field shows the currency you just picked (€2,000 · $2,000 · ₽200,000); nothing is assumed, and the goal can be skipped.
+- **Subscription** — the whole app needs an active subscription or its free trial. Without one only the paywall opens; even then people can still export their data, change the language, read the privacy notice or erase everything. Settings shows the status, opens Google Play's subscription page and restores purchases.
 - **Settings** — name, language, currency, monthly goal, light / dark / system theme, CSV export & import, delete everything.
-- **12 languages** — English, 中文 (简体), हिन्दी, Español, Français, العربية, বাংলা, Português, Русский, اردو, Bahasa Indonesia, 日本語 — with right-to-left layouts for Arabic and Urdu. See [Languages](#languages-and-localisation).
+- **14 languages** — English, 中文 (简体), हिन्दी, Español, Français, Deutsch, العربية, বাংলা, Português, Русский, اردو, Bahasa Indonesia, 日本語, 한국어 — with right-to-left layouts for Arabic and Urdu. See [Languages](#languages-and-localisation).
 - Month navigation across every screen, a different goal per month, decimal amounts, ~110 currencies searchable by name, code or symbol.
 
 ## Run it
 
 ```bash
 npm install
-npm run dev          # development server
+npm run dev          # development server (uses the pretend Google Play, so you can try the paywall)
 npm run build        # typecheck + production build into dist/
 npm run preview      # serve the production build at http://127.0.0.1:4173
 ```
@@ -31,12 +32,12 @@ It's a PWA: open it on a phone, "Add to Home Screen", and it behaves like a nati
 ### Tests
 
 ```bash
-npm test             # 320+ unit tests (Vitest): calculations, dates, money, CSV, goals, store, persistence, i18n, onboarding
+npm test             # 450+ unit tests (Vitest): calculations, dates, money, CSV, goals, store, persistence, i18n, onboarding, subscription rules, paywall
 npm run lint         # ESLint incl. React hooks rules
-npm run test:e2e     # ~140 real-browser tests (Playwright) against the production build, incl. axe audits and a 12-language layout sweep
+npm run test:e2e     # ~230 real-browser tests (Playwright), incl. the subscription lifecycle, axe audits and a 14-language layout sweep
 ```
 
-The e2e suite drives the production build in Chromium at phone size and runs the spec's QA checklist end to end: onboarding, add / edit / delete, goal reached / exceeded, month switching, persistence across reloads, theme switching, CSV round-trip, offline use (including switching to every language offline), time-zone safety, keyboard operation and WCAG 2 A/AA audits in both themes. `e2e/onboarding.spec.ts` covers the four-step flow in all 12 languages; `e2e/i18n.spec.ts` checks that every screen and sheet fits without overflow or clipped text at 320 × 568, 390 × 844 and 1280 × 800, and that Arabic and Urdu are properly mirrored. Set `CHROMIUM_PATH` if your Chromium isn't at `/opt/pw-browsers/chromium`. `SHOTS_DIR=/some/dir npx playwright test e2e/visual.spec.ts` captures a screenshot tour for design review.
+The e2e suite drives the production build in Chromium at phone size and runs the spec's QA checklist end to end: onboarding, add / edit / delete, goal reached / exceeded, month switching, persistence across reloads, theme switching, CSV round-trip, offline use (including switching to every language offline), time-zone safety, keyboard operation and WCAG 2 A/AA audits in both themes. `e2e/onboarding.spec.ts` covers the five-step flow in all 14 languages; `e2e/subscription.spec.ts` covers the subscription lifecycle (trial, cancellation, expiry, failed payment, restore, offline); `e2e/i18n.spec.ts` checks that every screen and sheet fits without overflow or clipped text at 320 × 568, 390 × 844 and 1280 × 800, and that Arabic and Urdu are properly mirrored. The browser tests run against a build with a *pretend Google Play* (`npm run build:mock`, done automatically); `npm run verify:release` proves the real build contains none of it. Set `CHROMIUM_PATH` if your Chromium isn't at `/opt/pw-browsers/chromium`. `SHOTS_DIR=/some/dir npx playwright test e2e/visual.spec.ts` captures a screenshot tour for design review.
 
 ## Architecture
 
@@ -47,6 +48,7 @@ src/
              validation · usecases · csv
   data/      schema (validate what's read back) · persistence (one atomic JSON document)
   state/     AppStore (useSyncExternalStore) — use case → persist → publish
+  billing/   subscription rules (pure) · EntitlementStore · Google Play gateway · pretend Play for dev/tests
   format/    Intl-based money / date / number formatters, currency catalogue + search, live amount-field grouping, locale detection
   i18n/      languages (the list) · registry (lazy loaders) · createTranslator · provider
              locales/<code>.ts — one dictionary per language, typed against English
@@ -80,11 +82,38 @@ UI  →  store actions  →  use cases (pure)  →  persistence  →  localStora
 | **CSV** | `Date,Amount,Currency,Note`, ISO dates, `.` decimals, UTF-8 with BOM (Excel-friendly). Notes that would be read as spreadsheet formulas are neutralised. Import never overwrites: it previews what will happen, skips duplicates and other-currency rows, and reports unreadable rows. |
 | **Privacy** | No accounts, analytics or network calls. A production Content-Security-Policy (`connect-src 'self'`) means the app *cannot* talk to another server even by mistake; an e2e test asserts no external request is made. Amounts and notes are never logged. |
 
+### Subscription (Google Play Billing)
+
+```
+Google Play  →  gateway (native plugin)  →  decideAccess (pure rules, src/billing/entitlement.ts)  →  EntitlementStore  →  the app
+```
+
+* **Google Play is the source of truth**, and it stops listing a subscription once it has really ended. So the rules are small and exhaustively tested: *listed & auto-renewing* → unlocked; *listed & cancelled* → unlocked until the paid period ends; *pending payment* → not yet; *not listed* → locked (expired, refunded, or payment failed past the grace period). A free trial, a renewal and a payment grace period all simply look like "still listed".
+* **Offline**: a successful check is honoured for 72 hours when Google Play can't be reached, then the app asks to reconnect (it never claims the subscription ended on a connection failure). Turning the device clock back cannot extend it.
+* **Price and trial come from Google Play** (`getSubscriptionOffer`), formatted for the person's country — the app never hard-codes a price, and never promises a trial the account has already used.
+* **Purchases are acknowledged immediately** (Google refunds unacknowledged ones after 3 days); the check repeats at launch, on returning to the foreground, when Google reports a change, and every 6 hours.
+* **No Stripe, no card details**: payment is Google Play's. The app has no INTERNET use of its own and the page CSP is `connect-src 'self'`.
+* **The pretend Google Play** used by development and the browser tests is compiled out of release builds; `scripts/verify-release-build.mjs` fails CI if any trace of it ships.
+* **Limit**: the check runs on the device. For tamper-resistance on rooted phones add server-side verification and Google's real-time notifications (needs your own Google Cloud service account) — see `docs/ANDROID_RELEASE.md`.
+
+### Android app
+
+The web build is bundled into an Android app with Capacitor 8 (`android/`, `capacitor.config.ts`). Everything needed to ship it is in
+[`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md) (build, signing, the exact Play Console subscription setup, testing with licence testers, going live),
+with the store texts, [privacy policy](docs/PRIVACY_POLICY.md) and [Data safety answers](docs/PLAY_DATA_SAFETY.md) alongside.
+
+```bash
+npm run android:sync     # build the real (non-test) web app, check it, copy it into android/
+npm run android:bundle   # → android/app/build/outputs/bundle/release/app-release.aab (needs your upload key, see the guide)
+```
+
+> The native plugin and Gradle files have **not been compiled** by the author's tooling (no Android SDK available there) — build once in Android Studio and test on a real phone before the first upload.
+
 ### Languages and localisation
 
 All user-facing text lives in `src/i18n/locales/<code>.ts`, one file per language, each typed against the English dictionary — a missing or misspelt key is a compile error, and a unit test also checks every language for completeness, matching `{placeholders}`, plural categories and leftover English. Each language is a separate lazily loaded chunk (3–5 kB gzipped); English is always bundled as the fallback, so a string that is somehow absent shows the English text rather than a key. The service worker precaches every chunk, so any language works offline.
 
-- **Choosing** — the first onboarding step lists the 12 languages in their own scripts; picking one switches the interface at once. It is stored with the settings and mirrored to `freelanche:lang`, which `public/theme-init.js` reads before first paint, so the `lang`/`dir` attributes (and therefore fonts and RTL) are right from the first frame. It can be changed in Settings at any time. Existing users keep their language and are not sent through onboarding again; the name defaults to empty.
+- **Choosing** — the first onboarding step lists the 14 languages in their own scripts; picking one switches the interface at once. It is stored with the settings and mirrored to `freelanche:lang`, which `public/theme-init.js` reads before first paint, so the `lang`/`dir` attributes (and therefore fonts and RTL) are right from the first frame. It can be changed in Settings at any time. Existing users keep their language and are not sent through onboarding again; the name defaults to empty.
 - **Formatting** — numbers, currency, dates, month names, percentages, plurals and the first day of the week all come from `Intl` for the language's regional locale (or the device's, when it already speaks that language). The Gregorian calendar is always used. Plurals use `Intl.PluralRules`, so Arabic (six forms) and Russian (three) are correct.
 - **Right-to-left** — Arabic and Urdu set `dir="rtl"`; the layout uses CSS logical properties, directional icons flip, the progress dots and navigation order mirror, and the chart plots time left to right as numbers do everywhere. Amounts and numeric fields stay left-to-right inside RTL pages.
 - **Fonts** — no web fonts are downloaded (the app makes no network requests). Each script gets a system font stack (`:lang(zh)`, `:lang(ja)`, `:lang(hi)`, `:lang(bn)`, `:lang(ar)`, `:lang(ur)`), taller line heights for scripts with stacked marks, and no letter-spacing or forced capitals on connected or case-less scripts.
@@ -99,10 +128,10 @@ Semantic landmarks and headings; every control has an accessible name; modals tr
 
 ### Deliberately not built
 
-Per the product brief — invoices, clients, expenses, taxes, budgets, bank sync, social features, subscriptions or paywalls. The domain layer keeps entries, goals and settings separate so they can be added later.
+Per the product brief — invoices, clients, expenses, taxes, budgets, bank sync, social features, ads. Accounts and a backend were left out on purpose: the Google account behind Google Play is the account. The domain layer keeps entries, goals and settings separate so they can be added later.
 
 **Reminders** (spec §75, "optional") were left out: browsers cannot reliably fire scheduled local notifications for an installed web app without a push server, which would break the "no network, no account" promise. A native wrapper could add this with local notifications, off by default.
 
 ## Tech
 
-React 19 · TypeScript (strict) · Vite · no runtime dependencies besides React · hand-written SVG chart and icons · ~100 KB gzipped JS plus one small chunk per language, loaded on demand.
+React 19 · TypeScript (strict) · Vite · no runtime dependencies besides React and Capacitor's tiny core · hand-written SVG chart and icons · ~108 KB gzipped JS plus one small chunk per language, loaded on demand.

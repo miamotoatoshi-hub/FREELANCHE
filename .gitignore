@@ -5,3 +5,11 @@ test-results
 playwright-report
 .DS_Store
 *.local
+
+# Android signing material and local build settings — never commit
+android/keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pem
+android/local.properties
