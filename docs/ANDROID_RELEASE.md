@@ -52,7 +52,7 @@ files are generated, so they are not committed and not edited by hand. Instead:
 
 - `android/settings.gradle` checks for them first and, if they are missing, stops with a plain-English message (what is missing, where to get the ready-made project, what developers run).
   CI proves that message appears on a plain checkout.
-- CI job `studio-project` runs `npm ci` + `npm run android:sync` and uploads the result as the artifact **`freelanche-android-studio-project`** (the `android` folder plus the Capacitor Android
+- CI job `studio-project` runs `npm ci` + `npm run android:sync` and uploads the result as the artifact **`freelanche-android-studio-project`** (the `android` folder plus `package.json` (the build reads the app version from it) and the Capacitor Android
   library next to it, a `READ-ME-FIRST.txt`, and no key, password or `local.properties`; it fails if one slips in). Unzip it to a short path (e.g. `C:\freelanche`) and open its `android` folder.
 - CI job `studio-project-windows` downloads exactly that artifact on a Windows runner — no Git, no Node, no `cap sync` — and runs `gradlew.bat projects` (what Android Studio's sync does)
   and `gradlew.bat assembleDebug`.

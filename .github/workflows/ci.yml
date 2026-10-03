@@ -118,12 +118,14 @@ jobs:
           rm -rf "$out/android/.gradle" "$out/android/build" "$out/android/app/build" "$out/android/.idea" "$out/android/local.properties" "$out/android/keystore.properties"
           find "$out" -name '*.iml' -delete
           cp -r node_modules/@capacitor/android "$out/node_modules/@capacitor/android"
+          cp package.json "$out/package.json"   # android/app/build.gradle reads the app version from ../../package.json
           cp docs/OPEN-IN-ANDROID-STUDIO.txt "$out/READ-ME-FIRST.txt"
           # nothing private may ever end up in this download
           private="$(find "$out" \( -name '*.jks' -o -name '*.keystore' -o -name '*.p12' -o -name '*.pem' -o -name 'keystore.properties' -o -name 'local.properties' \))"
           if [ -n "$private" ]; then
             echo "::error::A key or local settings file ended up in the project download."; exit 1
           fi
+          test -f "$out/package.json"
           test -f "$out/android/capacitor-cordova-android-plugins/cordova.variables.gradle"
           test -f "$out/node_modules/@capacitor/android/capacitor/build.gradle"
           test -f "$out/android/app/src/main/assets/public/index.html"

@@ -2,8 +2,13 @@
 //   - the Capacitor Android library, which npm installs into ../node_modules
 //   - the capacitor-cordova-android-plugins folder, which `cap sync` writes
 //   - the web app, which `cap sync` copies into app/src/main/assets/public
-// Without the first two, Gradle stops with a confusing message about cordova.variables.gradle. Say what is wrong in plain words instead.
+// The build also reads the app version from ../package.json, so this folder must stay inside the project folder.
+// Without these, Gradle stops with confusing messages (cordova.variables.gradle, "Unable to process file ... package.json").
+// Say what is wrong in plain words instead.
 def missingGenerated = []
+if (!new File(settingsDir, '../package.json').exists()) {
+    missingGenerated << '../package.json (this "android" folder must stay inside the project folder, next to package.json)'
+}
 if (!new File(settingsDir, '../node_modules/@capacitor/android/capacitor/build.gradle').exists()) {
     missingGenerated << '../node_modules/@capacitor/android (the Capacitor Android library)'
 }
@@ -12,7 +17,7 @@ if (!new File(settingsDir, 'capacitor-cordova-android-plugins/cordova.variables.
 }
 if (!missingGenerated.isEmpty()) {
     throw new GradleException("""
-This is the plain source-code download. It is missing files that Capacitor generates:
+This is the plain source-code download (or the "android" folder was moved away on its own). Files the Android build needs are missing:
   - ${missingGenerated.join('\n  - ')}
 
 EASIEST FIX - no tools needed: download the ready-to-open project instead.
