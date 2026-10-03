@@ -109,6 +109,12 @@ npm run android:sync     # build the real (non-test) web app, check it, copy it 
 npm run android:bundle   # → android/app/build/outputs/bundle/release/app-release.aab (needs your upload key, see the guide)
 ```
 
+**Opening the Android project in Android Studio.** A plain download of the source (Code → Download ZIP, or `git clone`) cannot be opened directly: Capacitor generates three
+things that Git deliberately ignores — the Capacitor Android library in `node_modules`, the `android/capacitor-cordova-android-plugins` folder and the web app copied into
+`android/app/src/main/assets/public` — and Gradle stops with an error about `cordova.variables.gradle`. Either use the ready-made project (no Node.js, no commands): GitHub →
+**Actions** → newest green **CI** run → **Artifacts** → `freelanche-android-studio-project` (steps inside it, in `READ-ME-FIRST.txt`; source: [`docs/OPEN-IN-ANDROID-STUDIO.txt`](docs/OPEN-IN-ANDROID-STUDIO.txt)),
+or, as a developer, run `npm ci && npm run android:sync` first and open the `android` folder. CI proves the ready-made project syncs and builds on **Windows** (job `studio-project-windows`).
+
 > The Android project is built for real by CI on GitHub (job `android`: compile, native unit tests, a refusal test for a missing licence key, and a signed-release rehearsal with a throwaway key, which also runs the pre-build key check and the post-build signature check used by the manual "Android bundle" workflow). It has not been installed on a phone by the author, and **no real Google Play payment has been tested yet** — see `docs/TESTING.md` for the phone test.
 
 ### Languages and localisation

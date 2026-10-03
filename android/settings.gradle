@@ -1,3 +1,33 @@
+// A plain download of the source code does not contain three things that Capacitor generates (they are rebuilt, never stored in Git):
+//   - the Capacitor Android library, which npm installs into ../node_modules
+//   - the capacitor-cordova-android-plugins folder, which `cap sync` writes
+//   - the web app, which `cap sync` copies into app/src/main/assets/public
+// Without the first two, Gradle stops with a confusing message about cordova.variables.gradle. Say what is wrong in plain words instead.
+def missingGenerated = []
+if (!new File(settingsDir, '../node_modules/@capacitor/android/capacitor/build.gradle').exists()) {
+    missingGenerated << '../node_modules/@capacitor/android (the Capacitor Android library)'
+}
+if (!new File(settingsDir, 'capacitor-cordova-android-plugins/cordova.variables.gradle').exists()) {
+    missingGenerated << 'capacitor-cordova-android-plugins/ (written by "cap sync")'
+}
+if (!missingGenerated.isEmpty()) {
+    throw new GradleException("""
+This is the plain source-code download. It is missing files that Capacitor generates:
+  - ${missingGenerated.join('\n  - ')}
+
+EASIEST FIX - no tools needed: download the ready-to-open project instead.
+  GitHub > your repository > Actions > the newest green "CI" run > Artifacts > "freelanche-android-studio-project".
+  Unzip it (for example to C:\\freelanche) and open its "android" folder in Android Studio.
+
+For developers: in the project's main folder (the one with package.json) run  npm ci  and then  npm run android:sync,
+then reopen this folder.
+""")
+}
+if (!new File(settingsDir, 'app/src/main/assets/public/index.html').exists()) {
+    logger.warn('WARNING: the web app has not been copied into the Android project yet (app/src/main/assets/public is missing). ' +
+            'The project will sync, but the app would start empty. Run  npm run android:sync  first.')
+}
+
 include ':app'
 include ':capacitor-cordova-android-plugins'
 project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')

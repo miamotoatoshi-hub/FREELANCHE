@@ -105,6 +105,8 @@ The text goes straight to your clipboard; you don't need to look at it or save i
 
 This workflow only builds the file. It does **not** upload anything to Google Play and does not publish anything.
 
+**Want to look at the project in Android Studio (not needed for Google Play)?** Don't open the plain source download — it lacks files Capacitor generates, and Gradle's error mentions `cordova.variables.gradle`. Instead download the ready-made project: GitHub → **Actions** → the newest green **CI** run → **Artifacts** → `freelanche-android-studio-project`, unzip it to a short folder like `C:\freelanche` and, in Android Studio, **Open** the folder named `android`. `READ-ME-FIRST.txt` inside repeats these steps. No Node.js, PowerShell or Gradle editing is needed.
+
 **Or — on your own computer instead:** install **Android Studio**, run `npm run android:key` once (it also asks you to paste the licence key into `android/keystore.properties`), then `npm ci && npm run android:bundle`. The file appears at `android/app/build/outputs/bundle/release/app-release.aab`.
 
 - [ ] I have an `app-release.aab` file.
@@ -182,6 +184,7 @@ on a real phone.** Tell me before you do and I'll go through the final checklist
 | --- | --- |
 | "This subscription isn't available right now" | Product ID or base plan ID spelled differently; subscription/base plan/offer not **Active**; the build you installed is older than the subscription; wait a few hours. |
 | "Item not found" / app not found when opening the opt-in link | Not added to the tester list; wrong Google account on the phone; release not rolled out yet. |
+| Android Studio sync fails mentioning `cordova.variables.gradle` or "plain source-code download" | You opened the plain source download. Use the ready-made project instead (see Part F: `freelanche-android-studio-project` in the newest green CI run). |
 | Build fails with "Missing the Google Play licence key" | `PLAY_LICENSE_KEY` (or `playLicenseKey` on your own computer) is missing or incomplete. Copy it again from Part D. |
 | GitHub: "Missing repository secrets: …" | The listed secret names don't exist yet or are spelled differently. Names are case-sensitive; add them under Settings → Secrets and variables → Actions. |
 | GitHub: "UPLOAD_KEYSTORE_BASE64 is not valid base64 text" / "The key file could not be opened" | The text was cut off or changed when pasted, or `UPLOAD_STORE_PASSWORD` is wrong. Redo F1 and re-create that one secret. |

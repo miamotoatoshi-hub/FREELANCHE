@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -83,3 +84,77 @@ jobs:
           path: |
             android/app/build/reports
             android/app/build/test-results
+
+  # A plain download of the source code cannot open in Android Studio: Capacitor generates (and Git deliberately ignores) the
+  # Capacitor Android library in node_modules, the capacitor-cordova-android-plugins folder and the copied web app.
+  # This job prepares a project that contains all of them, so it can simply be unzipped and opened. Nothing secret is in it.
+  studio-project:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: A plain source download must explain itself in plain words, not fail with a confusing message
+        working-directory: android
+        run: |
+          if ./gradlew --no-daemon help > "$RUNNER_TEMP/plain.log" 2>&1; then
+            echo "::error::Gradle accepted a source download that is missing generated Capacitor files."; exit 1
+          fi
+          grep -q "plain source-code download" "$RUNNER_TEMP/plain.log" || { echo "::error::It failed, but not with the plain-English message:"; tail -30 "$RUNNER_TEMP/plain.log"; exit 1; }
+          echo "Good: a plain source download explains what is missing and what to do."
+      - run: npm ci
+      - run: npm run android:sync
+      - name: Assemble the ready-to-open project
+        run: |
+          out="$RUNNER_TEMP/freelanche-android-studio-project"
+          mkdir -p "$out/node_modules/@capacitor"
+          cp -a android "$out/android"
+          rm -rf "$out/android/.gradle" "$out/android/build" "$out/android/app/build" "$out/android/.idea" "$out/android/local.properties" "$out/android/keystore.properties"
+          find "$out" -name '*.iml' -delete
+          cp -r node_modules/@capacitor/android "$out/node_modules/@capacitor/android"
+          cp docs/OPEN-IN-ANDROID-STUDIO.txt "$out/READ-ME-FIRST.txt"
+          # nothing private may ever end up in this download
+          private="$(find "$out" \( -name '*.jks' -o -name '*.keystore' -o -name '*.p12' -o -name '*.pem' -o -name 'keystore.properties' -o -name 'local.properties' \))"
+          if [ -n "$private" ]; then
+            echo "::error::A key or local settings file ended up in the project download."; exit 1
+          fi
+          test -f "$out/android/capacitor-cordova-android-plugins/cordova.variables.gradle"
+          test -f "$out/node_modules/@capacitor/android/capacitor/build.gradle"
+          test -f "$out/android/app/src/main/assets/public/index.html"
+          echo "Project folder: $(du -sh "$out" | cut -f1), $(find "$out" -type f | wc -l) files"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: freelanche-android-studio-project
+          path: ${{ runner.temp }}/freelanche-android-studio-project
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+
+  # The real test of the above: take only what was uploaded (no Git, no Node, no "cap sync"), unzip it to a short Windows path
+  # and let Gradle do what Android Studio does on "Open": read every project, resolve every dependency, then build the debug app.
+  studio-project-windows:
+    needs: studio-project
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: freelanche-android-studio-project
+          path: C:\freelanche
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Gradle sync (what Android Studio runs when you open the folder)
+        working-directory: C:\freelanche\android
+        shell: cmd
+        run: gradlew.bat --no-daemon projects
+      - name: Build the debug app from the same folder
+        working-directory: C:\freelanche\android
+        shell: cmd
+        run: gradlew.bat --no-daemon assembleDebug

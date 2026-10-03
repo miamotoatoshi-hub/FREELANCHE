@@ -1,0 +1,30 @@
+FREELANCHE - OPEN THIS PROJECT IN ANDROID STUDIO
+================================================
+
+You do not need Node.js, PowerShell or any typed command, and you never have to edit a Gradle file.
+This folder is already prepared: everything Capacitor generates is inside it.
+
+1. Unzip this download into a SHORT folder, for example   C:\freelanche
+   (very long folder names can break Windows builds).
+
+2. Start Android Studio. Use the newest stable version (Help > Check for Updates).
+
+3. On the welcome screen choose  Open  (or File > Open), select the folder called   android
+   inside what you just unzipped, and press OK.
+   Do NOT open the outer folder - open the one named "android".
+
+4. If Android Studio asks "Trust this project?", choose Trust.
+   If it offers to upgrade the Gradle or Android Gradle plugin, choose "Don't remind me again" / "Not now".
+
+5. Wait until "Gradle sync" finishes (the progress bar at the bottom right disappears).
+   The first sync downloads files and can take several minutes. If it asks to install Android SDK
+   pieces or to accept licences, accept - that is normal.
+
+Done. You can now press Run (the green triangle) to start the app on a phone or an emulator.
+
+What this download is NOT:
+  - It is a debug/test project. The signed file for Google Play (.aab) is made on GitHub by the workflow
+    "Android bundle (manual)", with your own secrets. Follow docs/PLAY_CONSOLE_CHECKLIST.md, Parts E and F.
+  - It contains no password, key or secret of yours, and nothing in it is published anywhere.
+
+If the sync fails: copy the red error text from the "Build" panel (never any password) and send it to me.

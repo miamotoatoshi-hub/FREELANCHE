@@ -45,6 +45,19 @@ the answers in `docs/PLAY_DATA_SAFETY.md` and `docs/STORE_LISTING.md` as the sou
 
 Requirements: Android Studio (current stable; it includes JDK 21), Node 22. No Android Studio? Use the GitHub workflow *Android bundle (manual)* described in the checklist.
 
+**Why a plain download will not sync.** `android/.gitignore` (Capacitor's standard one) leaves three generated things out of Git: `node_modules/@capacitor/android`
+(which `capacitor.settings.gradle` points at), `android/capacitor-cordova-android-plugins/` (which `app/capacitor.build.gradle` and `settings.gradle` point at; `cap sync`
+writes it) and `android/app/src/main/assets/public/` (the web app). Without them Gradle fails on `../capacitor-cordova-android-plugins/cordova.variables.gradle`. These
+files are generated, so they are not committed and not edited by hand. Instead:
+
+- `android/settings.gradle` checks for them first and, if they are missing, stops with a plain-English message (what is missing, where to get the ready-made project, what developers run).
+  CI proves that message appears on a plain checkout.
+- CI job `studio-project` runs `npm ci` + `npm run android:sync` and uploads the result as the artifact **`freelanche-android-studio-project`** (the `android` folder plus the Capacitor Android
+  library next to it, a `READ-ME-FIRST.txt`, and no key, password or `local.properties`; it fails if one slips in). Unzip it to a short path (e.g. `C:\freelanche`) and open its `android` folder.
+- CI job `studio-project-windows` downloads exactly that artifact on a Windows runner — no Git, no Node, no `cap sync` — and runs `gradlew.bat projects` (what Android Studio's sync does)
+  and `gradlew.bat assembleDebug`.
+- Developers can instead run the two commands below in a normal checkout; the artifact is only a convenience for people without Node.js.
+
 ```bash
 npm ci
 npm run android:sync          # builds the web app, checks no test billing is inside it, copies it into the Android project
